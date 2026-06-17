@@ -253,36 +253,38 @@
 
         if (!items.length) { alert('No products to add.'); return; }
 
-        // ── OOS filter (client-side best-effort, draft skips — server is authoritative) ──
-        if (method !== 'draft') {
-            var oosCount = 0;
-            items = items.filter(function(item) {
-                var p = products.find(function(prod) {
-                    return (prod.variant_id || '').indexOf(item.id) !== -1;
-                });
-                if (!p) return true;
-                if (isOutOfStock(p)) { oosCount++; return false; }
-                return true;
+        // ── OOS choice dialog (ALL methods) ──────────────────────
+        var filterOos = true; // default: in-stock only
+        var hasOos = items.some(function(item) {
+            var p = products.find(function(prod) {
+                return (prod.variant_id || '').indexOf(item.id) !== -1;
             });
+            return p && isOutOfStock(p);
+        });
 
-            if (oosCount > 0) {
-                alert(oosCount + ' out-of-stock item(s) were skipped.\nOnly in-stock & unlimited products are included.');
-            }
-
-            if (!items.length) {
-                alert('All items were out of stock or unavailable. Nothing to order.');
-                return;
-            }
+        if (hasOos) {
+            filterOos = confirm(
+                'Some products may be out of stock.\n\n' +
+                'OK → IN-STOCK ONLY (skip OOS)\n' +
+                'Cancel → ALL products (include backorder)'
+            );
         }
 
-        // ── Method 1: Permalink ──
+        // ── Quick Add limit ──────────────────────────────────────
+        var QUICK_ADD_LIMIT = 200;
+        if (method === 'permalink' && items.length > QUICK_ADD_LIMIT) {
+            alert(items.length + ' products is too many for Quick Add (limit: ' + QUICK_ADD_LIMIT + ').\n\nUse Bulk Add or Submit Order instead.');
+            return;
+        }
+
+        // ── Method 1: Permalink (Quick Add) ──
         if (method === 'permalink') {
             var params = items.map(function(i) { return (i.id.split('/').pop()) + ':' + i.qty; }).join(',');
             window.location.href = '/cart/' + params + '?storefront=true';
             return;
         }
 
-        // ── Method 2: AJAX Cart ──
+        // ── Method 2: AJAX Cart (Bulk Add) ──
         if (method === 'ajax') {
             try {
                 var ajaxItems = items.map(function(i) { return { id: i.id.split('/').pop(), qty: i.qty }; });
@@ -296,24 +298,6 @@
 
         // ── Method 3: Draft Order ──
         if (method === 'draft') {
-            // ── OOS choice dialog ──
-            var filterOos = true; // default: in-stock only
-            var oosCount = 0;
-            items.forEach(function(item) {
-                var p = products.find(function(prod) {
-                    return (prod.variant_id || '').indexOf(item.id) !== -1;
-                });
-                if (p && isOutOfStock(p)) oosCount++;
-            });
-
-            if (oosCount > 0) {
-                filterOos = confirm(
-                    oosCount + ' out-of-stock product(s) found.\n\n' +
-                    'Click OK → IN-STOCK ONLY (skip OOS)\n' +
-                    'Click Cancel → ALL products (include backorder)'
-                );
-            }
-
             var email = prompt('✉️ Enter your email for invoice:', '');
             if (!email) return;
 

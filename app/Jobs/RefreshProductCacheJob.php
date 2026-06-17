@@ -50,7 +50,7 @@ class RefreshProductCacheJob implements ShouldQueue
                                 price
                                 inventoryQuantity
                                 inventoryPolicy
-                                product { id title }
+                                product { id title tags }
                             }
                         }
                     }

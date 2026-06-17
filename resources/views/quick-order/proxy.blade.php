@@ -20,7 +20,7 @@
     <div class="qb-card" style="padding:14px 20px;">
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
             <input type="text" class="qb-search" id="qb-search"
-                   placeholder="&#x1F50D; Search..."
+                   placeholder="&#x1F50D; Search by name, SKU or tags..."
                    oninput="filterProducts()"
                    style="margin-bottom:0;flex:1;min-width:180px;">
 
