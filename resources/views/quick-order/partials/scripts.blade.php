@@ -238,9 +238,12 @@
                 return { id: vid, qty: cartItems[vid] };
             });
         } else {
+            // For draft orders, always fetch ALL products (ignore search)
+            // For permalink/ajax, respect search filter
+            var searchQ = (method === 'draft') ? '' : q;
             var resp = await fetch('/apps/quick-order/api/add-all', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ q: q }),
+                body: JSON.stringify({ q: searchQ }),
             });
             var data = await resp.json();
             items = (data.variants || []).map(function(v) {
@@ -250,34 +253,25 @@
 
         if (!items.length) { alert('No products to add.'); return; }
 
-        // OOS check
-        var oosItems = items.filter(function(item) {
-            var p = products.find(function(prod) {
-                return (prod.variant_id || '').indexOf(item.id) !== -1;
-            });
-            return p && isOutOfStock(p);
-        });
-        // OOS check with two-button choice
-        if (oosItems.length > 0) {
-            var oosNames = oosItems.slice(0, 5).map(function(i) {
-                var p = products.find(function(prod) { return (prod.variant_id || '').indexOf(i.id) !== -1; });
-                return p ? p.title : i.id;
-            }).join('\n');
-
-            var skipOOS = confirm(
-                oosItems.length + ' item(s) out of stock:\n\n' +
-                oosNames + '\n\n' +
-                'Click OK to SKIP out-of-stock items\n' +
-                'Click Cancel to INCLUDE them as backorder'
-            );
-
-            if (skipOOS) {
-                // Remove OOS items
-                items = items.filter(function(item) {
-                    var p = products.find(function(prod) { return (prod.variant_id || '').indexOf(item.id) !== -1; });
-                    return !p || !isOutOfStock(p);
+        // ── OOS filter (client-side best-effort, draft skips — server is authoritative) ──
+        if (method !== 'draft') {
+            var oosCount = 0;
+            items = items.filter(function(item) {
+                var p = products.find(function(prod) {
+                    return (prod.variant_id || '').indexOf(item.id) !== -1;
                 });
-                if (!items.length) { alert('All items were out of stock. Nothing to order.'); return; }
+                if (!p) return true;
+                if (isOutOfStock(p)) { oosCount++; return false; }
+                return true;
+            });
+
+            if (oosCount > 0) {
+                alert(oosCount + ' out-of-stock item(s) were skipped.\nOnly in-stock & unlimited products are included.');
+            }
+
+            if (!items.length) {
+                alert('All items were out of stock or unavailable. Nothing to order.');
+                return;
             }
         }
 
@@ -311,6 +305,12 @@
             });
             var drData = await drResp.json();
 
+            // Server rejected (all OOS, etc.)
+            if (drData.error) {
+                alert(drData.error + (drData.oos_skipped ? ' (' + drData.oos_skipped + ' OOS skipped)' : ''));
+                return;
+            }
+
             // Large order → background job
             if (drData.queued) {
                 var msg = drData.message +
@@ -323,9 +323,10 @@
             }
 
             // Small order → instant
-            alert(drData.invoice_url
-                ? 'Order: ' + drData.draft_order + '\nInvoice sent to ' + email + '!'
-                : 'Order: ' + drData.draft_order);
+            var resultMsg = 'Order: ' + drData.draft_order;
+            if (drData.oos_skipped) resultMsg = drData.oos_skipped + ' OOS skipped.\n' + resultMsg;
+            if (drData.invoice_url) resultMsg += '\nInvoice sent to ' + email + '!';
+            alert(resultMsg);
         }
     };
 

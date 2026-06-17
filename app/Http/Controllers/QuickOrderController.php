@@ -120,6 +120,52 @@ class QuickOrderController extends Controller
             return response()->json(['error' => 'No items provided'], 400);
         }
 
+        // ── Server-side OOS filter against JSON catalog ──────────
+        $filePath = "quickb2b/{$shopDomain}/products.json";
+        $catalog = \Illuminate\Support\Facades\Storage::exists($filePath)
+            ? json_decode(\Illuminate\Support\Facades\Storage::get($filePath), true) ?: []
+            : [];
+
+        // Build lookup: variant_id (last segment) → inventory data
+        $stockMap = [];
+        foreach ($catalog as $p) {
+            if (!empty($p['variant_id'])) {
+                $stockMap[basename($p['variant_id'])] = [
+                    'tracked' => !empty($p['inventory_tracked']),
+                    'qty'     => (int) ($p['inventory'] ?? 0),
+                ];
+            }
+        }
+
+        // Filter: keep only in-stock (tracked+qty>0) or unlimited (untracked)
+        $filtered = [];
+        $oosCount = 0;
+        foreach ($items as $item) {
+            $vid = basename($item['id'] ?? '');
+            $stock = $stockMap[$vid] ?? null;
+
+            if (!$stock) {
+                // Not in catalog → keep (safety)
+                $filtered[] = $item;
+            } elseif ($stock['tracked'] && $stock['qty'] <= 0) {
+                // Tracked + OOS → skip
+                $oosCount++;
+            } else {
+                // Untracked OR tracked + in-stock → keep
+                $filtered[] = $item;
+            }
+        }
+
+        if (empty($filtered)) {
+            return response()->json([
+                'error' => 'All items were out of stock or unavailable.',
+                'oos_skipped' => $oosCount,
+            ], 422);
+        }
+
+        $items = $filtered;
+        // ── End OOS filter ────────────────────────────────────────
+
         // Large orders → background job
         if (count($items) > 499) {
             $orders = (int) ceil(count($items) / 499);
@@ -128,7 +174,8 @@ class QuickOrderController extends Controller
             return response()->json([
                 'queued' => true,
                 'orders' => $orders,
-                'message' => "Large order: {$orders} draft orders processing. Invoice(s) will be sent to {$email}.",
+                'oos_skipped' => $oosCount,
+                'message' => "Large order: {$orders} draft orders processing. " . ($oosCount ? "{$oosCount} OOS items skipped." : "") . " Invoice(s) will be sent to {$email}.",
             ]);
         }
 
@@ -155,6 +202,7 @@ class QuickOrderController extends Controller
             return response()->json([
                 'draft_order' => $draftOrder['name'] ?? 'Draft',
                 'invoice_url' => $invoiceUrl,
+                'oos_skipped' => $oosCount,
                 'message' => $invoiceUrl
                     ? "Invoice sent to {$email}!"
                     : 'Order created.',
