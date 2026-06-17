@@ -300,7 +300,30 @@ return [
     |
     */
 
-    'api_init' => null,
+    'api_init' => function (\Gnikyt\BasicShopifyAPI\Options $options, $session) {
+        $options->setGuzzleOptions([
+            'timeout' => 60.0,
+            'connect_timeout' => 15.0,
+        ]);
+
+        // We must create and return the API instance ourselves
+        $ts = \Osiset\ShopifyApp\Util::getShopifyConfig('api_time_store');
+        $ls = \Osiset\ShopifyApp\Util::getShopifyConfig('api_limit_store');
+        $sd = \Osiset\ShopifyApp\Util::getShopifyConfig('api_deferrer');
+
+        $api = new \Gnikyt\BasicShopifyAPI\BasicShopifyAPI(
+            $options,
+            new $ts(),
+            new $ls(),
+            new $sd()
+        );
+
+        if ($session !== null) {
+            $api->setSession($session);
+        }
+
+        return $api;
+    },
 
     /*
     |--------------------------------------------------------------------------

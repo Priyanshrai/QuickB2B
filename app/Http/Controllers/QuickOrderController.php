@@ -113,14 +113,27 @@ class QuickOrderController extends Controller
         }
 
         $items = $request->input('items', []);
-        $email = $request->input('email'); // optional customer email
+        $email = $request->input('email');
+        $shopDomain = $shop->getDomain()->toNative();
 
         if (empty($items)) {
             return response()->json(['error' => 'No items provided'], 400);
         }
 
+        // Large orders → background job
+        if (count($items) > 499) {
+            $orders = (int) ceil(count($items) / 499);
+            \App\Jobs\CreateDraftOrderJob::dispatch($shopDomain, $items, $email);
+
+            return response()->json([
+                'queued' => true,
+                'orders' => $orders,
+                'message' => "Large order: {$orders} draft orders processing. Invoice(s) will be sent to {$email}.",
+            ]);
+        }
+
+        // Small orders → inline (fast)
         try {
-            // $items = [{id: 'gid://...', qty: 5}, ...]
             $lineItems = array_map(fn($item) => [
                 'variantId' => $item['id'],
                 'quantity'  => (int) $item['qty'],
@@ -134,25 +147,44 @@ class QuickOrderController extends Controller
             }
 
             $draftOrder = $result['draftOrder'] ?? [];
-            $draftOrderId = $draftOrder['id'] ?? null;
-
-            // Send invoice
             $invoiceUrl = null;
-            if ($draftOrderId) {
-                $invoiceUrl = ShopifyGraphQL::sendDraftOrderInvoice($shop, $draftOrderId);
+            if (!empty($draftOrder['id'])) {
+                $invoiceUrl = ShopifyGraphQL::sendDraftOrderInvoice($shop, $draftOrder['id']);
             }
 
             return response()->json([
                 'draft_order' => $draftOrder['name'] ?? 'Draft',
                 'invoice_url' => $invoiceUrl,
-                'message'     => $invoiceUrl
-                    ? 'Invoice sent! Check your email.'
-                    : 'Order created. Invoice could not be sent.',
+                'message' => $invoiceUrl
+                    ? "Invoice sent to {$email}!"
+                    : 'Order created.',
             ]);
         } catch (\Throwable $e) {
             Log::error('QuickB2B: Draft order failed', ['error' => $e->getMessage()]);
             return response()->json(['error' => 'Could not create draft order'], 500);
         }
+    }
+
+    /**
+     * GET /api/quick-order/draft-order/status
+     * Progress of background draft order creation.
+     */
+    public function draftOrderStatus()
+    {
+        $shop = Auth::user();
+        if (!$shop) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $path = "quickb2b/{$shop->getDomain()->toNative()}/draft_order_progress.json";
+
+        if (!\Illuminate\Support\Facades\Storage::exists($path)) {
+            return response()->json(['status' => 'idle']);
+        }
+
+        return response()->json(
+            json_decode(\Illuminate\Support\Facades\Storage::get($path), true)
+        );
     }
 
     /**
@@ -204,5 +236,27 @@ class QuickOrderController extends Controller
         }
 
         return response()->json(['variants' => $variants]);
+    }
+
+    /**
+     * POST /api/draft-order/refresh
+     * Manually trigger product catalog refresh.
+     */
+    public function refreshProducts()
+    {
+        $shop = Auth::user();
+        if (!$shop) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $shopDomain = $shop->getDomain()->toNative();
+
+        // Delete old cache so it's a clean rebuild
+        \Illuminate\Support\Facades\Storage::delete("quickb2b/{$shopDomain}/products.json");
+        \Illuminate\Support\Facades\Storage::delete("quickb2b/{$shopDomain}/progress.json");
+
+        \App\Jobs\RefreshProductCacheJob::dispatch($shopDomain);
+
+        return response()->json(['status' => 'started', 'message' => 'Catalog refresh started']);
     }
 }

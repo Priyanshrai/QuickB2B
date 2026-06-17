@@ -37,6 +37,14 @@
 
             <span style="color:var(--qb-gray-200);margin:0 4px;">|</span>
 
+            <button onclick="refreshCatalog()" class="qb-btn"
+                    style="background:var(--qb-gray-100);color:var(--qb-gray-600);padding:8px 14px;font-size:12px;white-space:nowrap;"
+                    title="Refresh product catalog from Shopify">
+                &#x1F504; Refresh
+            </button>
+
+            <span style="color:var(--qb-gray-200);margin:0 4px;">|</span>
+
             <button onclick="smartCart('permalink')" class="qb-btn"
                     style="background:var(--qb-green);color:#fff;padding:8px 14px;font-size:12px;white-space:nowrap;"
                     title="Fast. Best for <300 products.">

@@ -310,9 +310,69 @@
                 body: JSON.stringify({ items: items, email: email }),
             });
             var drData = await drResp.json();
+
+            // Large order → background job
+            if (drData.queued) {
+                var msg = drData.message +
+                    '\n\nThis may take a few minutes for ' + drData.orders + ' draft orders.' +
+                    '\nYou will receive ' + drData.orders + ' invoice email(s) at ' + email + '.' +
+                    '\n\nWe will notify you when done.';
+                alert(msg);
+                pollDraftOrderStatus();
+                return;
+            }
+
+            // Small order → instant
             alert(drData.invoice_url
-                ? 'Invoice sent to ' + email + '!\nOrder: ' + drData.draft_order
+                ? 'Order: ' + drData.draft_order + '\nInvoice sent to ' + email + '!'
                 : 'Order: ' + drData.draft_order);
+        }
+    };
+
+    // ─── Poll draft order progress ────────────────────────────────
+
+    function pollDraftOrderStatus() {
+        var bar = document.getElementById('qb-progress');
+        bar.style.display = 'block';
+        document.getElementById('qb-progress-text').textContent = 'Processing draft orders...';
+
+        var interval = setInterval(async function() {
+            var resp = await fetch('/apps/quick-order/api/draft-order/status');
+            var s = await resp.json();
+
+            if (s.status === 'processing') {
+                document.getElementById('qb-progress-pct').textContent =
+                    s.orders_done + '/' + s.orders_total + ' orders';
+            }
+            if (s.status === 'complete') {
+                clearInterval(interval);
+                bar.style.display = 'none';
+                alert(s.message);
+            }
+            if (s.status === 'failed') {
+                clearInterval(interval);
+                bar.style.display = 'none';
+                alert('Failed: ' + (s.error || 'Unknown error'));
+            }
+        }, 5000);
+    }
+
+    // ─── Manual catalog refresh ──────────────────────────────────
+
+    window.refreshCatalog = async function() {
+        if (!confirm('Refresh product catalog from Shopify? This may take 1-2 minutes.')) return;
+
+        // Hide table, show progress
+        document.querySelector('#qb-table tbody').innerHTML =
+            '<tr><td colspan="5" class="qb-empty">&#x23F3; Starting catalog refresh&hellip;</td></tr>';
+
+        var resp = await fetch('/apps/quick-order/api/products/refresh', { method: 'POST' });
+        var data = await resp.json();
+
+        if (data.status === 'started') {
+            pollCatalogStatus(function() {
+                loadProducts();
+            });
         }
     };
 
