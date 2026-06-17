@@ -79,6 +79,9 @@
     };
 
     window.selectAllProducts = function() {
+        var btn = document.getElementById('qb-select-all');
+        var isSelecting = btn.textContent.indexOf('Select') !== -1;
+
         var filtered = products.filter(function(p) {
             var q = (document.getElementById('qb-search').value || '').toLowerCase();
             return !q
@@ -87,10 +90,17 @@
         });
 
         filtered.forEach(function(p) {
-            cartItems[p.variant_id] = 1;  // default qty = 1
+            if (isSelecting) {
+                cartItems[p.variant_id] = 1;       // select all
+            } else {
+                delete cartItems[p.variant_id];     // deselect all
+            }
         });
 
         renderProducts(document.getElementById('qb-search').value);
+
+        // Toggle button
+        btn.textContent = isSelecting ? '❎ Deselect All' : '✅ Select All';
     };
 
     function updateCartCount() {

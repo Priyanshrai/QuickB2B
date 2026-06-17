@@ -323,7 +323,7 @@ class ShopifyGraphQL
                                 title
                                 variants(first: 1) {
                                     edges {
-                                        node { id sku price }
+                                        node { id sku price inventoryQuantity }
                                     }
                                 }
                             }

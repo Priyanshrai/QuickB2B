@@ -33,7 +33,7 @@
     <div class="qb-card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
             <h2 style="margin:0;">Products</h2>
-            <button class="qb-btn" style="background:var(--qb-green);color:#fff;padding:6px 14px;font-size:12px;" onclick="selectAllProducts()">
+            <button id="qb-select-all" class="qb-btn" style="background:var(--qb-green);color:#fff;padding:6px 14px;font-size:12px;" onclick="selectAllProducts()">
                 &#x2705; Select All
             </button>
         </div>

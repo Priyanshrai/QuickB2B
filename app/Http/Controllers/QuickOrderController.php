@@ -34,7 +34,7 @@ class QuickOrderController extends Controller
                     'title'      => $node['title'] ?? '',
                     'sku'        => $firstVariant['sku'] ?? '',
                     'price'      => $firstVariant['price'] ?? '0.00',
-                    'inventory'  => 999, // placeholder — needs read_inventory scope + inventory query
+                    'inventory'  => $firstVariant['inventoryQuantity'] ?? 0,
                 ];
             }, $edges);
 
@@ -47,7 +47,7 @@ class QuickOrderController extends Controller
 
     /**
      * POST /api/quick-order/add-bulk
-     * Create a cart via Storefront API and return the checkout URL.
+     * Build a cart permalink and redirect the customer.
      */
     public function addBulk(Request $request)
     {
@@ -61,33 +61,14 @@ class QuickOrderController extends Controller
             return response()->json(['error' => 'No items provided'], 400);
         }
 
-        // ── Try Storefront Cart API first (if token configured) ──
-        $storefrontToken = env('SHOPIFY_STOREFRONT_ACCESS_TOKEN');
-        if ($storefrontToken) {
-            $lines = [];
-            foreach ($items as $variantId => $qty) {
-                $lines[] = ['merchandiseId' => $variantId, 'quantity' => (int) $qty];
-            }
-            $result = \App\Services\StorefrontGraphQL::createCart(
-                $shop->getDomain()->toNative(), $storefrontToken, $lines
-            );
-            if (!empty($result['cart']['checkoutUrl'])) {
-                return response()->json(['redirect' => $result['cart']['checkoutUrl']]);
-            }
-        }
-
-        // ── Cart permalink (always works, zero config) ──
+        // Cart permalink: /cart/variantId:qty,variantId:qty,...
         $variantParams = [];
         foreach ($items as $variantId => $qty) {
             $variantParams[] = basename($variantId) . ':' . $qty;
         }
         $redirect = 'https://' . $shop->getDomain()->toNative() . '/cart/' . implode(',', $variantParams) . '?storefront=true';
-        
-        Log::info('QuickB2B: Cart permalink generated', [
-            'items_count' => count($items),
-            'url' => $redirect,
-            'items' => $items,
-        ]);
+
+        return response()->json(['redirect' => $redirect]);
         
         return response()->json(['redirect' => $redirect]);
     }
