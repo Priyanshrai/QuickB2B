@@ -29,11 +29,12 @@ class QuickOrderController extends Controller
                 $firstVariant = $variants[0]['node'] ?? [];
 
                 return [
-                    'id'        => $node['id'] ?? '',
-                    'title'     => $node['title'] ?? '',
-                    'sku'       => $firstVariant['sku'] ?? '',
-                    'price'     => $firstVariant['price'] ?? '0.00',
-                    'inventory' => 999, // placeholder — needs read_inventory scope + inventory query
+                    'id'         => $node['id'] ?? '',
+                    'variant_id' => $firstVariant['id'] ?? '',  // gid://shopify/ProductVariant/...
+                    'title'      => $node['title'] ?? '',
+                    'sku'        => $firstVariant['sku'] ?? '',
+                    'price'      => $firstVariant['price'] ?? '0.00',
+                    'inventory'  => 999, // placeholder — needs read_inventory scope + inventory query
                 ];
             }, $edges);
 
@@ -46,7 +47,7 @@ class QuickOrderController extends Controller
 
     /**
      * POST /api/quick-order/add-bulk
-     * Add items to cart via Storefront API.
+     * Create a cart via Storefront API and return the checkout URL.
      */
     public function addBulk(Request $request)
     {
@@ -60,16 +61,34 @@ class QuickOrderController extends Controller
             return response()->json(['error' => 'No items provided'], 400);
         }
 
-        // TODO: Implement cart creation via Storefront API
-        // For now, build a cart permalink redirect
-        $variantParams = [];
-        foreach ($items as $variantId => $qty) {
-            $variantParams[] = $variantId . ':' . $qty;
+        // ── Try Storefront Cart API first (if token configured) ──
+        $storefrontToken = env('SHOPIFY_STOREFRONT_ACCESS_TOKEN');
+        if ($storefrontToken) {
+            $lines = [];
+            foreach ($items as $variantId => $qty) {
+                $lines[] = ['merchandiseId' => $variantId, 'quantity' => (int) $qty];
+            }
+            $result = \App\Services\StorefrontGraphQL::createCart(
+                $shop->getDomain()->toNative(), $storefrontToken, $lines
+            );
+            if (!empty($result['cart']['checkoutUrl'])) {
+                return response()->json(['redirect' => $result['cart']['checkoutUrl']]);
+            }
         }
 
-        $storeUrl = 'https://' . $shop->getDomain()->toNative();
-        $redirect = $storeUrl . '/cart/' . implode(',', $variantParams);
-
+        // ── Cart permalink (always works, zero config) ──
+        $variantParams = [];
+        foreach ($items as $variantId => $qty) {
+            $variantParams[] = basename($variantId) . ':' . $qty;
+        }
+        $redirect = 'https://' . $shop->getDomain()->toNative() . '/cart/' . implode(',', $variantParams) . '?storefront=true';
+        
+        Log::info('QuickB2B: Cart permalink generated', [
+            'items_count' => count($items),
+            'url' => $redirect,
+            'items' => $items,
+        ]);
+        
         return response()->json(['redirect' => $redirect]);
     }
 }
