@@ -1,14 +1,20 @@
-SKU,Quantity
-sku-managed-1,50
-sku-untracked-1,25
-sku-hosted-1,10
-ice,5
-dawn,3
-powder,10
-$10,20
-$100,5
-,,
-,,,,
-,,  QuickB2B CSV Format Guide,,
-,,  Column 1: SKU or Product Name,,
-,,  Column 2: Quantity,,
+SKU,Product_Name,Quantity
+sku-managed-1,,50
+sku-untracked-1,,25
+sku-hosted-1,,10
+,The Hidden Snowboard,5
+,Gift Card,20
+,The Complete Snowboard,3
+,The Draft Snowboard,2
+,Selling Plans Ski Wax,15
+,The Compare at Price Snowboard,8
+,The Archived Snowboard,12
+,,,
+,,,
+,,QuickB2B CSV Format Guide,,
+,,Column 1: SKU (if product has one),,
+,,Column 2: Product Name (if no SKU),,
+,,Column 3: Quantity,,
+,,,
+,,Use SKU column OR Product Name column (not both),,
+,,Delete guide rows before uploading,,

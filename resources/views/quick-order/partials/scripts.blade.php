@@ -174,6 +174,11 @@
     };
 
 
+    window.clearTableQty = function() {
+        cartItems = {};
+        renderProducts();
+    };
+
     window.clearShopifyCart = async function() {
         var btn = document.getElementById('qb-clear-cart');
         var original = btn.textContent;
@@ -316,9 +321,17 @@
             lines.forEach(function(line) {
                 var cols = line.split(/[,\t]/);
                 var sku = (cols[0] || '').trim();
-                var qty = parseInt(cols[1]) || 1;
+                var name = (cols[1] || '').trim();
+                var qty = parseInt(cols[2]) || 1;
+
+                // Skip header row
+                if (sku === 'SKU' || sku === 'SKU_or_Product_Name') return;
+
+                // Match by SKU first, then by product name
                 var product = products.find(function(p) {
-                    return p.sku === sku || p.title.toLowerCase() === sku.toLowerCase();
+                    return (sku && p.sku === sku) ||
+                           (sku && p.title.toLowerCase() === sku.toLowerCase()) ||
+                           (name && p.title.toLowerCase() === name.toLowerCase());
                 });
                 if (product) {
                     cartItems[product.variant_id] = qty;

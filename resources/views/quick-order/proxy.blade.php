@@ -52,10 +52,18 @@
                     title="B2B. Creates draft order + sends invoice.">
                 &#x1F4E7; Submit Order
             </button>
+
+            <span style="color:var(--qb-gray-200);margin:0 4px;">|</span>
+
+            <button onclick="clearTableQty()" class="qb-btn"
+                    style="background:var(--qb-gray-100);color:var(--qb-gray-600);padding:8px 14px;font-size:12px;white-space:nowrap;"
+                    title="Clear all quantities in the table">
+                &#x274E; Clear
+            </button>
             <button id="qb-clear-cart" class="qb-btn"
-                    style="background:#d82c0d;color:#fff;padding:8px 14px;font-size:12px;"
-                    onclick="clearShopifyCart()" title="Clear cart">
-                &#x1F5D1;
+                    style="background:#d82c0d;color:#fff;padding:8px 14px;font-size:12px;white-space:nowrap;"
+                    onclick="clearShopifyCart()" title="Empty your Shopify cart">
+                &#x1F5D1; Clear Cart
             </button>
         </div>
         <div id="qb-csv-status" style="font-size:11px;color:var(--qb-green);display:none;margin-top:6px;"></div>
