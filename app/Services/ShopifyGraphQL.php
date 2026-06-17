@@ -1,0 +1,237 @@
+<?php
+
+namespace App\Services;
+
+use Gnikyt\BasicShopifyAPI\ResponseAccess;
+
+class ShopifyGraphQL
+{
+    /**
+     * Execute a GraphQL query and return the unwrapped 'data' array.
+     */
+    public static function query($shop, string $query, array $variables = []): array
+    {
+        $response = $shop->api()->graph($query, $variables);
+        $body = $response['body'] ?? [];
+        $data = static::unwrap($body['data'] ?? []);
+
+        return $data;
+    }
+
+    /**
+     * Get the raw response (with errors key) for error checking.
+     */
+    public static function raw($shop, string $query, array $variables = []): array
+    {
+        return $shop->api()->graph($query, $variables);
+    }
+
+    // ─── Page Operations ───────────────────────────────────────────
+
+    /**
+     * Create an online store page. Returns page data or throws on error.
+     */
+    public static function createPage($shop, string $title, string $bodyHtml = ''): array
+    {
+        $mutation = <<<'GQL'
+            mutation pageCreate($page: PageCreateInput!) {
+                pageCreate(page: $page) {
+                    page { id title handle }
+                    userErrors { field message }
+                }
+            }
+        GQL;
+
+        $data = static::query($shop, $mutation, [
+            'page' => [
+                'title'       => $title,
+                'body'        => $bodyHtml,
+                'isPublished' => true,
+            ],
+        ]);
+
+        return $data['pageCreate'] ?? [];
+    }
+
+    /**
+     * Update a page title. Returns updated page data.
+     */
+    public static function updatePageTitle($shop, string $pageId, string $title): array
+    {
+        $mutation = <<<'GQL'
+            mutation pageUpdate($id: ID!, $page: PageUpdateInput!) {
+                pageUpdate(id: $id, page: $page) {
+                    page { id title handle }
+                    userErrors { field message }
+                }
+            }
+        GQL;
+
+        $data = static::query($shop, $mutation, [
+            'id'   => $pageId,
+            'page' => ['title' => $title],
+        ]);
+
+        return $data['pageUpdate'] ?? [];
+    }
+
+    /**
+     * Delete a page from the online store.
+     */
+    public static function deletePage($shop, string $pageId): array
+    {
+        $mutation = <<<'GQL'
+            mutation pageDelete($id: ID!) {
+                pageDelete(id: $id) {
+                    deletedPageId
+                    userErrors { field message }
+                }
+            }
+        GQL;
+
+        $data = static::query($shop, $mutation, ['id' => $pageId]);
+
+        return $data['pageDelete'] ?? [];
+    }
+
+    // ─── Menu / Navigation Operations ──────────────────────────────
+
+    /**
+     * Fetch all navigation menus from the store.
+     */
+    public static function fetchMenus($shop): array
+    {
+        $query = <<<'GQL'
+            query {
+                menus(first: 10) {
+                    edges {
+                        node { id title handle }
+                    }
+                }
+            }
+        GQL;
+
+        $data = static::query($shop, $query);
+        $edges = $data['menus']['edges'] ?? [];
+
+        return array_map(fn ($e) => $e['node'], $edges);
+    }
+
+    /**
+     * Fetch a single menu with its items.
+     */
+    public static function fetchMenuWithItems($shop, string $menuId): array
+    {
+        $query = <<<'GQL'
+            query menu($id: ID!) {
+                menu(id: $id) {
+                    id
+                    title
+                    items {
+                        id
+                        title
+                        type
+                        resourceId
+                    }
+                }
+            }
+        GQL;
+
+        $data = static::query($shop, $query, ['id' => $menuId]);
+
+        return $data['menu'] ?? [];
+    }
+
+    /**
+     * Update a menu — replace all items with the given list.
+     * Pass items as array of { title, type, resourceId?, id? }.
+     * Include `id` on existing items to update them; omit `id` to create new.
+     */
+    public static function updateMenu($shop, string $menuId, string $menuTitle, array $items): array
+    {
+        $mutation = <<<'GQL'
+            mutation menuUpdate($id: ID!, $title: String!, $items: [MenuItemUpdateInput!]!) {
+                menuUpdate(id: $id, title: $title, items: $items) {
+                    menu { id title }
+                    userErrors { field message }
+                }
+            }
+        GQL;
+
+        $data = static::query($shop, $mutation, [
+            'id'    => $menuId,
+            'title' => $menuTitle,
+            'items' => $items,
+        ]);
+
+        return $data['menuUpdate'] ?? [];
+    }
+
+    /**
+     * Add a single page link to a menu (appends without removing existing items).
+     */
+    public static function addPageToMenu($shop, string $menuId, string $menuTitle, string $pageId, string $linkTitle): array
+    {
+        // Get current menu items first
+        $menu = static::fetchMenuWithItems($shop, $menuId);
+        $existingItems = $menu['items'] ?? [];
+
+        // Map existing items to update format (include id)
+        $items = array_map(fn ($item) => [
+            'id'         => $item['id'],
+            'title'      => $item['title'],
+            'type'       => $item['type'],
+            'resourceId' => $item['resourceId'] ?? null,
+        ], $existingItems);
+
+        // Append the new page link
+        $items[] = [
+            'title'      => $linkTitle,
+            'type'       => 'PAGE',
+            'resourceId' => $pageId,
+        ];
+
+        return static::updateMenu($shop, $menuId, $menuTitle, $items);
+    }
+
+    /**
+     * Remove a page link from a menu while keeping all other items.
+     */
+    public static function removePageFromMenu($shop, string $menuId, string $pageId): array
+    {
+        $menu = static::fetchMenuWithItems($shop, $menuId);
+        $existingItems = $menu['items'] ?? [];
+        $menuTitle = $menu['title'] ?? '';
+
+        // Filter out the page to remove
+        $filtered = array_filter($existingItems, fn ($item) =>
+            ($item['resourceId'] ?? '') !== $pageId
+        );
+
+        // Rebuild items list
+        $items = array_map(fn ($item) => [
+            'id'         => $item['id'],
+            'title'      => $item['title'],
+            'type'       => $item['type'],
+            'resourceId' => $item['resourceId'] ?? null,
+        ], array_values($filtered));
+
+        return static::updateMenu($shop, $menuId, $menuTitle, $items);
+    }
+
+    // ─── Internal Helpers ──────────────────────────────────────────
+
+    /**
+     * Deep-convert ResponseAccess to plain arrays.
+     */
+    private static function unwrap(mixed $data): array
+    {
+        if ($data instanceof ResponseAccess) {
+            return json_decode(json_encode($data->toArray()), true);
+        }
+        if (is_array($data)) {
+            return $data;
+        }
+        return [];
+    }
+}

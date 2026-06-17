@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\QuickOrderPage;
+use App\Services\ShopifyGraphQL;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -16,141 +18,79 @@ class SetupController extends Controller
     public function createPageAndMenu(Request $request)
     {
         $shop = Auth::user();
-        $api = $shop->api();
 
-        $results = [
-            'page' => null,
-            'menu' => null,
-        ];
-
-        // ─── Step 1: Create the page ─────────────────────────────────
-        $pageMutation = <<<'GQL'
-            mutation pageCreate($page: PageCreateInput!) {
-                pageCreate(page: $page) {
-                    page {
-                        id
-                        title
-                        handle
-                    }
-                    userErrors {
-                        field
-                        message
-                    }
-                }
-            }
-        GQL;
-
-        $pageResponse = $api->graph($pageMutation, [
-            'page' => [
-                'title'      => 'Quick Order',
-                'bodyHtml'   => '<p>Loading QuickB2B order form...</p>',
-                'isPublished'=> true,
-            ],
-        ]);
-
-        // Check for HTTP/network errors
-        if (!empty($pageResponse['errors'])) {
-            Log::error('QuickB2B pageCreate API error', ['errors' => $pageResponse['errors']]);
-            return back()->with('error', 'Page creation failed due to API error.');
+        // Prevent duplicate — one page per shop
+        if (QuickOrderPage::where('user_id', Auth::id())->exists()) {
+            return back()->with('error', 'A Quick Order page already exists. Delete it first to create a new one.');
         }
 
-        $body = $pageResponse['body'];
-        $userErrors = $body['data']['pageCreate']['userErrors'] ?? [];
+        // ─── Step 1: Create the page ─────────────────────────────────
+        $result = ShopifyGraphQL::createPage($shop, 'Quick Order', '<p>Loading QuickB2B order form...</p>');
 
+        $userErrors = $result['userErrors'] ?? [];
         if (!empty($userErrors)) {
             Log::error('QuickB2B pageCreate failed', ['errors' => $userErrors]);
             return back()->with('error', 'Page creation failed: ' . $userErrors[0]['message']);
         }
 
-        $page = $body['data']['pageCreate']['page'];
-        $results['page'] = $page;
+        $page = $result['page'];
         Log::info('QuickB2B page created', ['page' => $page]);
 
+        // Save to DB (menu not linked yet)
+        $quickPage = QuickOrderPage::create([
+            'user_id'        => Auth::id(),
+            'shopify_page_id'=> $page['id'],
+            'title'          => $page['title'],
+            'handle'         => $page['handle'],
+            'is_published'   => true,
+            'menu_linked'    => false,
+            'page_url'       => $shop->getDomain()->toNative() . '/pages/' . $page['handle'],
+        ]);
+
         // ─── Step 2: Find the main navigation menu ──────────────────
-        $menuQuery = <<<'GQL'
-            query {
-                menus(first: 10) {
-                    edges {
-                        node {
-                            id
-                            title
-                            handle
-                        }
-                    }
-                }
-            }
-        GQL;
+        $menus = ShopifyGraphQL::fetchMenus($shop);
 
-        $menuResponse = $api->graph($menuQuery);
-
-        if (!empty($menuResponse['errors'])) {
-            Log::error('QuickB2B menus query API error', ['errors' => $menuResponse['errors']]);
-            return back()->with('error', 'Could not fetch navigation menus due to API error.');
-        }
-
-        $menuBody = $menuResponse['body'];
-        $menus = $menuBody['data']['menus']['edges'] ?? [];
-
-        // Prefer "main-menu", fallback to the first available menu
         $targetMenu = null;
-        foreach ($menus as $edge) {
-            $menu = $edge['node'];
+        foreach ($menus as $menu) {
             if ($menu['handle'] === 'main-menu') {
                 $targetMenu = $menu;
                 break;
             }
         }
         if (!$targetMenu && !empty($menus)) {
-            $targetMenu = $menus[0]['node'];
+            $targetMenu = $menus[0];
         }
 
         if (!$targetMenu) {
-            Log::warning('QuickB2B: No navigation menu found', ['menus' => $menus]);
+            Log::warning('QuickB2B: No navigation menu found');
             return back()->with('success', '✅ Page "Quick Order" created! But no menu was found to link it. You may need to add it manually.');
         }
 
         // ─── Step 3: Add the page to the menu ──────────────────────
-        $menuMutation = <<<'GQL'
-            mutation menuUpdate($id: ID!, $items: [MenuItemCreateInput!]!) {
-                menuUpdate(id: $id, items: $items) {
-                    menu {
-                        id
-                        title
-                    }
-                    userErrors {
-                        field
-                        message
-                    }
-                }
-            }
-        GQL;
+        $menuResult = ShopifyGraphQL::addPageToMenu(
+            $shop,
+            $targetMenu['id'],
+            $targetMenu['title'],
+            $page['id'],
+            'Quick Order'
+        );
 
-        $menuUpdateResponse = $api->graph($menuMutation, [
-            'id'    => $targetMenu['id'],
-            'items' => [
-                [
-                    'title'      => 'Quick Order',
-                    'resourceId' => $page['id'],
-                    'type'       => 'PAGE',
-                ],
-            ],
-        ]);
-
-        if (!empty($menuUpdateResponse['errors'])) {
-            Log::error('QuickB2B menuUpdate API error', ['errors' => $menuUpdateResponse['errors']]);
-            return back()->with('success', '✅ Page "Quick Order" created! But adding to menu failed due to API error.');
-        }
-
-        $menuBody = $menuUpdateResponse['body'];
-        $menuErrors = $menuBody['data']['menuUpdate']['userErrors'] ?? [];
-
+        $menuErrors = $menuResult['userErrors'] ?? [];
         if (!empty($menuErrors)) {
             Log::error('QuickB2B menuUpdate failed', ['errors' => $menuErrors]);
             return back()->with('success', '✅ Page "Quick Order" created! But adding to menu failed: ' . $menuErrors[0]['message']);
         }
 
-        $results['menu'] = $menuBody['data']['menuUpdate']['menu'];
-        Log::info('QuickB2B page added to menu', $results);
+        // Update DB with menu info
+        $quickPage->update([
+            'shopify_menu_id' => $targetMenu['id'],
+            'menu_linked'     => true,
+        ]);
+
+        Log::info('QuickB2B full setup complete', [
+            'page' => $page,
+            'menu' => $menuResult['menu'] ?? null,
+        ]);
 
         return back()->with('success', '✅ All done! The "Quick Order" page is live and linked in your store\'s navigation menu.');
     }

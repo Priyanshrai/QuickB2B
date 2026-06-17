@@ -61,6 +61,14 @@ Route::middleware(['verify.shopify'])->group(function () {
     // One-click setup: create Quick Order page + add to navigation menu
     Route::post('/setup/create-page', [\App\Http\Controllers\SetupController::class, 'createPageAndMenu'])
         ->name('setup.create-page');
+
+    // Page management
+    Route::post('/page/update-title', [\App\Http\Controllers\PageController::class, 'updateTitle'])
+        ->name('page.update-title');
+    Route::post('/page/delete', [\App\Http\Controllers\PageController::class, 'deletePage'])
+        ->name('page.delete');
+    Route::post('/page/link-menu', [\App\Http\Controllers\PageController::class, 'linkToMenu'])
+        ->name('page.link-menu');
 });
 
 /*
