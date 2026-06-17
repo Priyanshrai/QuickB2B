@@ -13,7 +13,9 @@ Route::get('/privacy', function () {
 Route::middleware(['auth.proxy'])->group(function () {
     Route::get('/apps/quick-order', function () {
         $shop = Auth::user();
-        return view('quick-order.index', ['shopDomain' => $shop->getDomain()->toNative()]);
+        return response(
+            view('quick-order.proxy', ['shopDomain' => $shop->getDomain()->toNative()])
+        )->header('Content-Type', 'application/liquid');
     })->name('proxy.quick-order');
 
     Route::get('/apps/quick-order/api/products', [\App\Http\Controllers\QuickOrderController::class, 'products']);
