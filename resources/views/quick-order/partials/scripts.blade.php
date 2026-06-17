@@ -128,21 +128,25 @@
         if (p.variant_title && p.variant_title !== 'Default Title') {
             productLabel += ' &mdash; ' + p.variant_title;
         }
-        var isOOS = p.inventory <= 0;
-        var disabledAttr = isOOS ? ' disabled title="Out of stock"' : '';
+        var oos = isOutOfStock(p);
+        var disabledAttr = oos ? ' disabled title="Out of stock"' : '';
 
-        return '<tr class="' + (isOOS ? 'qb-row-oos' : '') + '">' +
-            '<td><strong>' + productLabel + '</strong>' + (isOOS ? ' <span style="color:#d82c0d;font-size:11px;">(OOS)</span>' : '') + '</td>' +
+        return '<tr class="' + (oos ? 'qb-row-oos' : '') + '">' +
+            '<td><strong>' + productLabel + '</strong>' + (oos ? ' <span style="color:#d82c0d;font-size:11px;">(OOS)</span>' : '') + '</td>' +
             '<td>' + (p.sku || '&mdash;') + '</td>' +
             '<td>$' + parseFloat(p.price).toFixed(2) + '</td>' +
-            '<td>' + getStockLabel(p.inventory) + '</td>' +
+            '<td>' + getStockLabel(p.inventory, p.inventory_tracked) + '</td>' +
             '<td><input type="number" class="qb-qty" min="0" value="' + qty +
                 '" placeholder="0" data-id="' + p.variant_id +
                 '" onchange="updateCart(this)"' + disabledAttr + '></td>' +
             '</tr>';
     }
 
-    function getStockLabel(inventory) {
+    function getStockLabel(inventory, tracked) {
+        // tracked=false or '' means untracked (overselling allowed) → Unlimited
+        if (!tracked) {
+            return '<span class="qb-stock-in">Unlimited</span>';
+        }
         if (inventory > 10) {
             return '<span class="qb-stock-in">' + inventory + ' in stock</span>';
         }
@@ -150,6 +154,13 @@
             return '<span class="qb-stock-low">Only ' + inventory + ' left</span>';
         }
         return '<span class="qb-stock-out">Out of stock</span>';
+    }
+
+    function isOutOfStock(p) {
+        // Untracked (CONTINUE policy) = never OOS
+        if (!p.inventory_tracked) return false;
+        // Tracked (DENY policy) + inventory 0 = OOS
+        return (p.inventory || 0) <= 0;
     }
 
     // ─── Cart operations ──────────────────────────────────────────
@@ -205,70 +216,87 @@
 
     window.smartCart = async function(method) {
         var q = document.getElementById('qb-search').value;
+        var useSelected = Object.keys(cartItems).length > 0;
 
-        var resp = await fetch('/apps/quick-order/api/add-all', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ q: q }),
+        // Build line items from table qty OR all products
+        var items = []; // [{id: 'gid://...Variant/123', qty: 5}, ...]
+
+        if (useSelected) {
+            items = Object.keys(cartItems).map(function(vid) {
+                return { id: vid, qty: cartItems[vid] };
+            });
+        } else {
+            var resp = await fetch('/apps/quick-order/api/add-all', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ q: q }),
+            });
+            var data = await resp.json();
+            items = (data.variants || []).map(function(v) {
+                return { id: 'gid://shopify/ProductVariant/' + v, qty: 1 };
+            });
+        }
+
+        if (!items.length) { alert('No products to add.'); return; }
+
+        // OOS check
+        var oosItems = items.filter(function(item) {
+            var p = products.find(function(prod) {
+                return (prod.variant_id || '').indexOf(item.id) !== -1;
+            });
+            return p && isOutOfStock(p);
         });
-        var data = await resp.json();
-        var variants = data.variants || [];
-        var count = variants.length;
+        // OOS check with two-button choice
+        if (oosItems.length > 0) {
+            var oosNames = oosItems.slice(0, 5).map(function(i) {
+                var p = products.find(function(prod) { return (prod.variant_id || '').indexOf(i.id) !== -1; });
+                return p ? p.title : i.id;
+            }).join('\n');
 
-        if (!count) { alert('No products to add.'); return; }
+            var skipOOS = confirm(
+                '\u26A0\uFE0F ' + oosItems.length + ' item(s) out of stock:\n\n' +
+                oosNames + '\n\n' +
+                'Click OK to SKIP out-of-stock items\n' +
+                'Click Cancel to INCLUDE them as backorder'
+            );
 
-        // Check for out-of-stock items (match bare variant ID from API with full GID in products)
-        var oosProducts = products.filter(function(p) {
-            var bareId = (p.variant_id || '').split('/').pop();
-            return variants.indexOf(bareId) !== -1 && p.inventory <= 0;
-        });
-        var oosCount = oosProducts.length;
-
-        if (oosCount > 0) {
-            var oosNames = oosProducts.slice(0, 5).map(function(p) { return p.title; }).join(', ');
-            if (oosCount > 5) oosNames += '... and ' + (oosCount - 5) + ' more';
-            if (!confirm('\u26A0\uFE0F ' + oosCount + ' item(s) out of stock:\n\n' + oosNames + '\n\nContinue anyway?')) {
-                return;
+            if (skipOOS) {
+                // Remove OOS items
+                items = items.filter(function(item) {
+                    var p = products.find(function(prod) { return (prod.variant_id || '').indexOf(item.id) !== -1; });
+                    return !p || !isOutOfStock(p);
+                });
+                if (!items.length) { alert('All items were out of stock. Nothing to order.'); return; }
             }
         }
 
-        // ── Method 1: Cart Permalink (fast, <300 products) ──
+        // ── Method 1: Permalink ──
         if (method === 'permalink') {
-            var params = variants.map(function(v) { return v + ':1'; }).join(',');
+            var params = items.map(function(i) { return (i.id.split('/').pop()) + ':' + i.qty; }).join(',');
             window.location.href = '/cart/' + params + '?storefront=true';
             return;
         }
 
-        // ── Method 2: AJAX Cart (batched, <2000 products) ──
+        // ── Method 2: AJAX Cart ──
         if (method === 'ajax') {
-            var items = variants.map(function(v) { return { id: v, qty: 1 }; });
-            await ajaxAddToCart(items);
+            var ajaxItems = items.map(function(i) { return { id: i.id.split('/').pop(), qty: i.qty }; });
+            await ajaxAddToCart(ajaxItems);
             window.location.href = '/cart';
             return;
         }
 
-        // ── Method 3: Draft Order (unlimited, B2B invoice) ──
+        // ── Method 3: Draft Order ──
         if (method === 'draft') {
-            var email = prompt('\u2709\uFE0F Enter your email to receive the invoice:', '');
-            if (!email) { alert('Email is required for invoice.'); return; }
-
-            var lineItems = variants.map(function(v) {
-                return { id: 'gid://shopify/ProductVariant/' + v, qty: 1 };
-            });
+            var email = prompt('\u2709\uFE0F Enter your email for invoice:', '');
+            if (!email) return;
 
             var drResp = await fetch('/apps/quick-order/api/draft-order', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ items: lineItems, email: email }),
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items: items, email: email }),
             });
             var drData = await drResp.json();
-
-            if (drData.invoice_url) {
-                alert('\u2705 Invoice sent to ' + email + '!\n\nOrder: ' + drData.draft_order + '\n\nCheck your email for the payment link.');
-            } else {
-                alert('\u26A0\uFE0F Order created but invoice could not be sent.\nOrder: ' + drData.draft_order);
-            }
-            return;
+            alert(drData.invoice_url
+                ? '\u2705 Invoice sent to ' + email + '!\nOrder: ' + drData.draft_order
+                : '\u2705 Order: ' + drData.draft_order);
         }
     };
 

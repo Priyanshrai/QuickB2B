@@ -49,6 +49,7 @@ class RefreshProductCacheJob implements ShouldQueue
                                 sku
                                 price
                                 inventoryQuantity
+                                inventoryPolicy
                                 product { id title }
                             }
                         }
@@ -125,7 +126,8 @@ class RefreshProductCacheJob implements ShouldQueue
                     'variant_title' => $obj['title'] ?? '',
                     'sku'           => $obj['sku'] ?? '',
                     'price'         => $obj['price'] ?? '0.00',
-                    'inventory'     => $obj['inventoryQuantity'] ?? 0,
+                    'inventory'         => $obj['inventoryQuantity'] ?? 0,
+                    'inventory_tracked' => ($obj['inventoryPolicy'] ?? '') === 'DENY',
                 ];
             }
 
