@@ -17,7 +17,6 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'auth.webhook.gdpr' => \App\Http\Middleware\AuthWebhookGdpr::class,
-            'auth.proxy' => \App\Http\Middleware\VerifyAppProxy::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
