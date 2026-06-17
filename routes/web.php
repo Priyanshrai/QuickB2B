@@ -1,0 +1,116 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
+use Osiset\ShopifyApp\Util;
+
+// Privacy Policy (public, no auth required)
+Route::get('/privacy', function () {
+    return response()->file(public_path('privacy-policy.html'));
+});
+
+// Home — Dashboard
+Route::get('/', function () {
+    return view('welcome');
+})->middleware(['verify.shopify'])->name('home');
+
+// Billing — Plans page
+Route::middleware(['verify.shopify'])->group(function () {
+    Route::get('/plans', function () {
+        return view('billing.plans');
+    })->name('plans');
+
+    Route::get('/plans/subscribe', function (Request $request) {
+        $shop = Auth::user();
+        try {
+            $charge = app(\Osiset\ShopifyApp\Actions\CreateRecurringCharge::class);
+            $charge($shop->getId(), [
+                'name' => 'Pro Plan',
+                'price' => 4.99,
+                'trial_days' => 7,
+                'test' => config('shopify-app.billing.test', true),
+            ]);
+            return redirect()->to($charge->getConfirmationUrl());
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Plan subscribe failed', [
+                'shop' => $shop->getDomain()->toNative(),
+                'error' => $e->getMessage(),
+            ]);
+            return back()->with('error', 'Could not create subscription. Please try again.');
+        }
+    })->name('plans.subscribe');
+
+    Route::get('/plans/cancel', function (Request $request) {
+        $shop = Auth::user();
+        try {
+            $cancelPlan = app(\Osiset\ShopifyApp\Actions\CancelCurrentPlan::class);
+            $cancelPlan($shop->getId());
+            $shop->plan_id = null;
+            $shop->save();
+            return redirect()->route('plans', ['host' => $request->get('host')])
+                ->with('success', 'Subscription cancelled. You are now on the Free plan.');
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Plan cancel failed', [
+                'shop' => $shop->getDomain()->toNative(),
+                'error' => $e->getMessage(),
+            ]);
+            return back()->with('error', 'Could not cancel subscription. Please try again.');
+        }
+    })->name('plans.cancel');
+});
+
+/*
+|--------------------------------------------------------------------------
+| GDPR Compliance Webhooks (Mandatory for App Store)
+|--------------------------------------------------------------------------
+| Uses the package's auth.webhook middleware for HMAC verification.
+| Kyon147 package /webhook/{type} route cannot handle slashes in topic
+| names (shop/redact, customers/redact, etc.), so we define explicit routes.
+| Using /webhook/gdpr/ prefix to avoid conflict with package's /webhook/{type} route.
+*/
+Route::prefix('webhook/gdpr')->middleware(['auth.webhook.gdpr'])->group(function () {
+    Route::post('/shop-redact', function (Request $request) {
+        \App\Jobs\GdprShopRedactJob::dispatch(
+            $request->header('x-shopify-shop-domain'),
+            json_decode($request->getContent())
+        );
+        return response('', 201);
+    });
+
+    Route::post('/customers-redact', function (Request $request) {
+        \App\Jobs\GdprCustomerRedactJob::dispatch(
+            $request->header('x-shopify-shop-domain'),
+            json_decode($request->getContent())
+        );
+        return response('', 201);
+    });
+
+    Route::post('/customers-data-request', function (Request $request) {
+        \App\Jobs\GdprCustomerDataRequestJob::dispatch(
+            $request->header('x-shopify-shop-domain'),
+            json_decode($request->getContent())
+        );
+        return response('', 201);
+    });
+});
+
+// Single GDPR compliance endpoint (TOML format: all 3 topics → one URL)
+Route::post('/webhooks', function (Request $request) {
+    $topic = $request->header('X-Shopify-Topic', '');
+    $domain = $request->header('x-shopify-shop-domain');
+    $data = json_decode($request->getContent());
+
+    $job = match ($topic) {
+        'shop/redact' => \App\Jobs\GdprShopRedactJob::class,
+        'customers/redact' => \App\Jobs\GdprCustomerRedactJob::class,
+        'customers/data_request' => \App\Jobs\GdprCustomerDataRequestJob::class,
+        default => null,
+    };
+
+    if (!$job) {
+        return response('Unknown topic', 400);
+    }
+
+    $job::dispatch($domain, $data);
+    return response('', 201);
+})->middleware('auth.webhook.gdpr');
