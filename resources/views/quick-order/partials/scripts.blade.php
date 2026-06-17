@@ -217,9 +217,10 @@
 
         if (!count) { alert('No products to add.'); return; }
 
-        // Check for out-of-stock items
+        // Check for out-of-stock items (match bare variant ID from API with full GID in products)
         var oosProducts = products.filter(function(p) {
-            return variants.indexOf(p.variant_id) !== -1 && p.inventory <= 0;
+            var bareId = (p.variant_id || '').split('/').pop();
+            return variants.indexOf(bareId) !== -1 && p.inventory <= 0;
         });
         var oosCount = oosProducts.length;
 
