@@ -22,6 +22,7 @@ Route::middleware(['auth.proxy'])->group(function () {
     Route::get('/apps/quick-order/api/products/status', [\App\Http\Controllers\QuickOrderController::class, 'productsStatus']);
     Route::post('/apps/quick-order/api/add-all', [\App\Http\Controllers\QuickOrderController::class, 'addAll']);
     Route::post('/apps/quick-order/api/add-bulk', [\App\Http\Controllers\QuickOrderController::class, 'addBulk']);
+    Route::post('/apps/quick-order/api/draft-order', [\App\Http\Controllers\QuickOrderController::class, 'draftOrder']);
 });
 
 // Home — Dashboard

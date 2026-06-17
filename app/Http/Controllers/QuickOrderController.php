@@ -102,7 +102,61 @@ class QuickOrderController extends Controller
     }
 
     /**
-     * GET /api/quick-order/products/status
+     * POST /api/quick-order/draft-order
+     * Create a draft order (works on password-protected stores, B2B ready).
+     */
+    public function draftOrder(Request $request)
+    {
+        $shop = Auth::user();
+        if (!$shop) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $items = $request->input('items', []);
+        $email = $request->input('email'); // optional customer email
+
+        if (empty($items)) {
+            return response()->json(['error' => 'No items provided'], 400);
+        }
+
+        try {
+            // $items = [{id: 'gid://...', qty: 5}, ...]
+            $lineItems = array_map(fn($item) => [
+                'variantId' => $item['id'],
+                'quantity'  => (int) $item['qty'],
+            ], $items);
+
+            $result = ShopifyGraphQL::createDraftOrder($shop, $lineItems, $email);
+
+            if (!empty($result['userErrors'])) {
+                Log::error('QuickB2B: Draft order errors', ['errors' => $result['userErrors']]);
+                return response()->json(['error' => 'Could not create order'], 500);
+            }
+
+            $draftOrder = $result['draftOrder'] ?? [];
+            $draftOrderId = $draftOrder['id'] ?? null;
+
+            // Send invoice
+            $invoiceUrl = null;
+            if ($draftOrderId) {
+                $invoiceUrl = ShopifyGraphQL::sendDraftOrderInvoice($shop, $draftOrderId);
+            }
+
+            return response()->json([
+                'draft_order' => $draftOrder['name'] ?? 'Draft',
+                'invoice_url' => $invoiceUrl,
+                'message'     => $invoiceUrl
+                    ? 'Invoice sent! Check your email.'
+                    : 'Order created. Invoice could not be sent.',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('QuickB2B: Draft order failed', ['error' => $e->getMessage()]);
+            return response()->json(['error' => 'Could not create draft order'], 500);
+        }
+    }
+
+    /**
+     * POST /api/quick-order/products/status
      * Progress of background product cache refresh.
      */
     public function productsStatus()

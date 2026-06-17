@@ -128,15 +128,17 @@
         if (p.variant_title && p.variant_title !== 'Default Title') {
             productLabel += ' &mdash; ' + p.variant_title;
         }
+        var isOOS = p.inventory <= 0;
+        var disabledAttr = isOOS ? ' disabled title="Out of stock"' : '';
 
-        return '<tr>' +
-            '<td><strong>' + productLabel + '</strong></td>' +
+        return '<tr class="' + (isOOS ? 'qb-row-oos' : '') + '">' +
+            '<td><strong>' + productLabel + '</strong>' + (isOOS ? ' <span style="color:#d82c0d;font-size:11px;">(OOS)</span>' : '') + '</td>' +
             '<td>' + (p.sku || '&mdash;') + '</td>' +
             '<td>$' + parseFloat(p.price).toFixed(2) + '</td>' +
             '<td>' + getStockLabel(p.inventory) + '</td>' +
             '<td><input type="number" class="qb-qty" min="0" value="' + qty +
                 '" placeholder="0" data-id="' + p.variant_id +
-                '" onchange="updateCart(this)"></td>' +
+                '" onchange="updateCart(this)"' + disabledAttr + '></td>' +
             '</tr>';
     }
 
@@ -199,41 +201,73 @@
         }
     }
 
-    // ─── Top: Add ALL products via AJAX Cart (batched, unlimited) ─
+    // ─── Smart Cart: permalink / AJAX / Draft Order ──────────────
 
-    window.addAllToCart = async function() {
-        var btn = document.getElementById('qb-select-all');
-        var original = btn.textContent;
-        btn.disabled = true;
+    window.smartCart = async function(method) {
+        var q = document.getElementById('qb-search').value;
 
-        try {
-            var q = document.getElementById('qb-search').value;
-            var resp = await fetch('/apps/quick-order/api/add-all', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ q: q }),
-            });
-            var data = await resp.json();
-            var variants = data.variants || [];
-            if (!variants.length) {
-                alert('No products to add.');
-                btn.textContent = original;
-                btn.disabled = false;
+        var resp = await fetch('/apps/quick-order/api/add-all', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ q: q }),
+        });
+        var data = await resp.json();
+        var variants = data.variants || [];
+        var count = variants.length;
+
+        if (!count) { alert('No products to add.'); return; }
+
+        // Check for out-of-stock items
+        var oosProducts = products.filter(function(p) {
+            return variants.indexOf(p.variant_id) !== -1 && p.inventory <= 0;
+        });
+        var oosCount = oosProducts.length;
+
+        if (oosCount > 0) {
+            var oosNames = oosProducts.slice(0, 5).map(function(p) { return p.title; }).join(', ');
+            if (oosCount > 5) oosNames += '... and ' + (oosCount - 5) + ' more';
+            if (!confirm('\u26A0\uFE0F ' + oosCount + ' item(s) out of stock:\n\n' + oosNames + '\n\nContinue anyway?')) {
                 return;
             }
+        }
 
-            var total = variants.length;
-            // Build items array: [{id: '123', qty: 1}, ...]
-            var items = variants.map(function(vid) {
-                return { id: vid, qty: 1 };
-            });
+        // ── Method 1: Cart Permalink (fast, <300 products) ──
+        if (method === 'permalink') {
+            var params = variants.map(function(v) { return v + ':1'; }).join(',');
+            window.location.href = '/cart/' + params + '?storefront=true';
+            return;
+        }
 
+        // ── Method 2: AJAX Cart (batched, <2000 products) ──
+        if (method === 'ajax') {
+            var items = variants.map(function(v) { return { id: v, qty: 1 }; });
             await ajaxAddToCart(items);
             window.location.href = '/cart';
-        } catch (e) {
-            alert('\u26A0\uFE0F Could not add products. Please try again.');
-            btn.textContent = original;
-            btn.disabled = false;
+            return;
+        }
+
+        // ── Method 3: Draft Order (unlimited, B2B invoice) ──
+        if (method === 'draft') {
+            var email = prompt('\u2709\uFE0F Enter your email to receive the invoice:', '');
+            if (!email) { alert('Email is required for invoice.'); return; }
+
+            var lineItems = variants.map(function(v) {
+                return { id: 'gid://shopify/ProductVariant/' + v, qty: 1 };
+            });
+
+            var drResp = await fetch('/apps/quick-order/api/draft-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items: lineItems, email: email }),
+            });
+            var drData = await drResp.json();
+
+            if (drData.invoice_url) {
+                alert('\u2705 Invoice sent to ' + email + '!\n\nOrder: ' + drData.draft_order + '\n\nCheck your email for the payment link.');
+            } else {
+                alert('\u26A0\uFE0F Order created but invoice could not be sent.\nOrder: ' + drData.draft_order);
+            }
+            return;
         }
     };
 
@@ -310,30 +344,6 @@
             handleCSV({ files: e.dataTransfer.files });
         });
     })();
-
-    // ─── Background catalog refresh progress ──────────────────────
-
-    function pollCatalogStatus() {
-        fetch('/apps/quick-order/api/products/status')
-            .then(function(r) { return r.json(); })
-            .then(function(s) {
-                if (s.status === 'starting' || s.status === 'querying' || s.status === 'processing' || s.status === 'downloading') {
-                    var bar = document.getElementById('qb-progress');
-                    bar.style.display = 'block';
-                    document.getElementById('qb-progress-pct').textContent = s.percent + '%';
-                }
-                if (s.status === 'complete') {
-                    // Reload to get the full catalog
-                    location.reload();
-                }
-                if (s.status === 'failed') {
-                    document.getElementById('qb-progress').style.display = 'none';
-                }
-            });
-    }
-
-    // Poll every 3 seconds if we're using paginated fallback (source !== 'bulk')
-    // Check by looking at whether products came from bulk or paginated response
 
     // ─── Kick off ─────────────────────────────────────────────────
 

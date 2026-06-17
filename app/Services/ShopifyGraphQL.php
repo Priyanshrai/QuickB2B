@@ -349,6 +349,51 @@ class ShopifyGraphQL
         return ['edges' => $edges, 'nextCursor' => $nextCursor, 'hasMore' => $hasMore];
     }
 
+    // ─── Draft Orders ─────────────────────────────────────────────
+
+    /**
+     * Create a draft order with line items.
+     * $items = [['variantId' => 'gid://...', 'quantity' => 5], ...]
+     * Returns ['draftOrder' => [...], 'userErrors' => [...]] or null.
+     */
+    public static function createDraftOrder($shop, array $lineItems, ?string $email = null): ?array
+    {
+        $input = ['lineItems' => $lineItems];
+        if ($email) {
+            $input['email'] = $email;
+        }
+
+        $mutation = <<<'GQL'
+            mutation draftOrderCreate($input: DraftOrderInput!) {
+                draftOrderCreate(input: $input) {
+                    draftOrder { id name invoiceUrl status }
+                    userErrors { field message }
+                }
+            }
+        GQL;
+
+        $data = static::query($shop, $mutation, ['input' => $input]);
+        return $data['draftOrderCreate'] ?? null;
+    }
+
+    /**
+     * Send invoice for a draft order. Returns invoiceUrl or null.
+     */
+    public static function sendDraftOrderInvoice($shop, string $draftOrderId): ?string
+    {
+        $mutation = <<<'GQL'
+            mutation draftOrderInvoiceSend($id: ID!) {
+                draftOrderInvoiceSend(id: $id) {
+                    draftOrder { invoiceUrl }
+                    userErrors { field message }
+                }
+            }
+        GQL;
+
+        $data = static::query($shop, $mutation, ['id' => $draftOrderId]);
+        return $data['draftOrderInvoiceSend']['draftOrder']['invoiceUrl'] ?? null;
+    }
+
     // ─── Internal Helpers ──────────────────────────────────────────
 
     /**

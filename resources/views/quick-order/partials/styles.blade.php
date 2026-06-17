@@ -180,6 +180,14 @@
         color: var(--qb-green);
     }
 
+    /* ── Out of Stock Row ── */
+    .qb-row-oos {
+        opacity: .6;
+    }
+    .qb-row-oos:hover {
+        opacity: .85;
+    }
+
     /* ── Footer ── */
     .qb-footer {
         text-align: center;
