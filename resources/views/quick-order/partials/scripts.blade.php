@@ -207,7 +207,6 @@
     // ─── Helper: Add items to cart via AJAX ───────────────────────
 
     async function ajaxAddToCart(items) {
-        // items = [{id: '123', qty: 5}, {id: '456', qty: 3}]
         var batchSize = 50;
         for (var i = 0; i < items.length; i += batchSize) {
             var batch = items.slice(i, i + batchSize);
@@ -215,7 +214,13 @@
             batch.forEach(function(item) {
                 formData.append('updates[' + item.id + ']', item.qty);
             });
-            await fetch('/cart/update.js', { method: 'POST', body: formData });
+            var resp = await fetch('/cart/update.js', { method: 'POST', body: formData });
+            if (!resp.ok) {
+                throw new Error('Cart API failed with status ' + resp.status);
+            }
+            if (i + batchSize < items.length) {
+                await new Promise(function(r) { setTimeout(r, 1000); });
+            }
         }
     }
 
@@ -285,9 +290,13 @@
 
         // ── Method 2: AJAX Cart ──
         if (method === 'ajax') {
-            var ajaxItems = items.map(function(i) { return { id: i.id.split('/').pop(), qty: i.qty }; });
-            await ajaxAddToCart(ajaxItems);
-            window.location.href = '/cart';
+            try {
+                var ajaxItems = items.map(function(i) { return { id: i.id.split('/').pop(), qty: i.qty }; });
+                await ajaxAddToCart(ajaxItems);
+                window.location.href = '/cart';
+            } catch (e) {
+                alert('Cart API failed (' + e.message + ').\n\nTry Submit Order instead - it works on any store and creates an invoice.');
+            }
             return;
         }
 
