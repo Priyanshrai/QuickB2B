@@ -75,6 +75,10 @@
         width: 100%;
         border-collapse: collapse;
     }
+    .qb-table tr {
+        content-visibility: auto;
+        contain-intrinsic-size: auto 48px;
+    }
     .qb-table th {
         text-align: left;
         padding: 10px 12px;

@@ -304,51 +304,49 @@ class ShopifyGraphQL
     // ─── Product Data ──────────────────────────────────────────────
 
     /**
-     * Fetch products with basic data for the quick order table.
+     * Fetch products with cursor pagination for infinite scroll.
+     * Returns ['edges' => [...], 'nextCursor' => '...', 'hasMore' => bool]
      */
-    public static function fetchProducts($shop): array
+    public static function fetchProducts($shop, ?string $cursor = null, int $first = 250): array
     {
         $allEdges = [];
-        $cursor = null;
+        $nextCursor = null;
+        $hasMore = false;
 
-        do {
-            $afterArg = $cursor ? ', after: "' . $cursor . '"' : '';
+        $afterArg = $cursor ? ', after: "' . $cursor . '"' : '';
 
-            $query = <<<GQL
-                {
-                    products(first: 50{$afterArg}) {
-                        edges {
-                            node {
-                                id
-                                title
-                                variants(first: 1) {
-                                    edges {
-                                        node { id sku price inventoryQuantity }
-                                    }
+        $query = <<<GQL
+            {
+                products(first: {$first}{$afterArg}) {
+                    edges {
+                        node {
+                            id
+                            title
+                            variants(first: 1) {
+                                edges {
+                                    node { id sku price inventoryQuantity }
                                 }
                             }
-                            cursor
                         }
-                        pageInfo { hasNextPage }
+                        cursor
                     }
+                    pageInfo { hasNextPage }
                 }
-            GQL;
-
-            $data = static::query($shop, $query);
-            $products = $data['products'] ?? [];
-            $edges = $products['edges'] ?? [];
-            $allEdges = array_merge($allEdges, $edges);
-
-            $pageInfo = $products['pageInfo'] ?? [];
-            if (!empty($pageInfo['hasNextPage']) && !empty($edges)) {
-                $lastEdge = end($edges);
-                $cursor = $lastEdge['cursor'] ?? null;
-            } else {
-                $cursor = null;
             }
-        } while ($cursor);
+        GQL;
 
-        return array_values($allEdges);
+        $data = static::query($shop, $query);
+        $products = $data['products'] ?? [];
+        $edges = $products['edges'] ?? [];
+        $pageInfo = $products['pageInfo'] ?? [];
+        $hasMore = !empty($pageInfo['hasNextPage']);
+
+        if ($hasMore && !empty($edges)) {
+            $lastEdge = end($edges);
+            $nextCursor = $lastEdge['cursor'] ?? null;
+        }
+
+        return ['edges' => $edges, 'nextCursor' => $nextCursor, 'hasMore' => $hasMore];
     }
 
     // ─── Internal Helpers ──────────────────────────────────────────

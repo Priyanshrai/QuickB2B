@@ -2,6 +2,12 @@
 
 @include('quick-order.partials.styles')
 
+{{-- Progress banner (hidden by default, shown during background catalog refresh) --}}
+<div id="qb-progress" style="display:none;background:var(--qb-green);color:#fff;padding:8px 20px;font-size:13px;font-weight:600;text-align:center;">
+    <span id="qb-progress-text">🔄 Updating product catalog...</span>
+    <span id="qb-progress-pct" style="margin-left:8px;opacity:.8;"></span>
+</div>
+
 <div class="qb-container">
 
     {{-- Header --}}
@@ -33,8 +39,11 @@
     <div class="qb-card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
             <h2 style="margin:0;">Products</h2>
-            <button id="qb-select-all" class="qb-btn" style="background:var(--qb-green);color:#fff;padding:6px 14px;font-size:12px;" onclick="selectAllProducts()">
-                &#x2705; Select All
+            <button id="qb-select-all" class="qb-btn" style="background:var(--qb-green);color:#fff;padding:6px 14px;font-size:12px;" onclick="addAllToCart()">
+                &#x1F6D2; Add All to Cart
+            </button>
+            <button id="qb-clear-cart" class="qb-btn" style="background:#d82c0d;color:#fff;padding:6px 14px;font-size:12px;" onclick="clearShopifyCart()">
+                &#x1F5D1; Clear Cart
             </button>
         </div>
         <table class="qb-table" id="qb-table">
@@ -56,7 +65,7 @@
     {{-- Add All to Cart --}}
     <div class="qb-card" style="text-align:center;">
         <button class="qb-btn qb-btn-primary" id="qb-add-all" disabled
-                onclick="addAllToCart()">
+                onclick="addSelectedToCart()">
             &#x1F6D2; Add All to Cart
             <span class="qb-cart-count" id="qb-cart-count">0</span>
         </button>
