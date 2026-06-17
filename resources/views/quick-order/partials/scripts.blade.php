@@ -24,7 +24,7 @@
 
             if (data.source === 'waiting') {
                 document.querySelector('#qb-table tbody').innerHTML =
-                    '<tr><td colspan="5" class="qb-empty">&#x23F3; Loading product catalog&hellip;</td></tr>';
+                    '<tr><td colspan="6" class="qb-empty">&#x23F3; Loading product catalog&hellip;</td></tr>';
                 pollCatalogStatus(function() { loadProducts(query, page); });
                 return;
             }
@@ -41,7 +41,7 @@
             renderProducts();
         } catch (e) {
             document.querySelector('#qb-table tbody').innerHTML =
-                '<tr><td colspan="5" class="qb-empty">&#x26A0;&#xFE0F; Could not load products. Please try again.</td></tr>';
+                '<tr><td colspan="6" class="qb-empty">&#x26A0;&#xFE0F; Could not load products. Please try again.</td></tr>';
         }
     }
 
@@ -103,7 +103,7 @@
         var tbody = document.querySelector('#qb-table tbody');
 
         if (!products.length) {
-            tbody.innerHTML = '<tr><td colspan="5" class="qb-empty">No products found.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="qb-empty">No products found.</td></tr>';
             return;
         }
 
@@ -131,9 +131,19 @@
         var oos = isOutOfStock(p);
         var disabledAttr = oos ? ' disabled title="Out of stock"' : '';
 
+        // Format tags as small badges (handles both string and array)
+        var tagsHtml = '';
+        if (p.tags && p.tags !== '{}' && p.tags !== '[]') {
+            var tagList = Array.isArray(p.tags) ? p.tags : String(p.tags).split(',');
+            tagsHtml = tagList.filter(function(t) { return t && String(t).trim(); }).map(function(t) {
+                return '<span style="display:inline-block;background:var(--qb-gray-100);color:var(--qb-gray-600);padding:1px 6px;border-radius:3px;font-size:10px;margin:1px 2px;">' + String(t).trim() + '</span>';
+            }).join('');
+        }
+
         return '<tr class="' + (oos ? 'qb-row-oos' : '') + '">' +
             '<td><strong>' + productLabel + '</strong>' + (oos ? ' <span style="color:#d82c0d;font-size:11px;">(OOS)</span>' : '') + '</td>' +
             '<td>' + (p.sku || '&mdash;') + '</td>' +
+            '<td>' + (tagsHtml || '&mdash;') + '</td>' +
             '<td>$' + parseFloat(p.price).toFixed(2) + '</td>' +
             '<td>' + getStockLabel(p.inventory, p.inventory_tracked) + '</td>' +
             '<td><input type="number" class="qb-qty" min="0" value="' + qty +
@@ -368,7 +378,7 @@
 
         // Hide table, show progress
         document.querySelector('#qb-table tbody').innerHTML =
-            '<tr><td colspan="5" class="qb-empty">&#x23F3; Starting catalog refresh&hellip;</td></tr>';
+            '<tr><td colspan="6" class="qb-empty">&#x23F3; Starting catalog refresh&hellip;</td></tr>';
 
         var resp = await fetch('/apps/quick-order/api/products/refresh', { method: 'POST' });
         var data = await resp.json();

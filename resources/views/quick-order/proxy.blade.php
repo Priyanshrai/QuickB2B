@@ -84,13 +84,14 @@
                 <tr>
                     <th>Product</th>
                     <th>SKU</th>
+                    <th>Tags</th>
                     <th>Price</th>
                     <th>Stock</th>
                     <th style="width:100px;">Qty</th>
                 </tr>
             </thead>
             <tbody>
-                <tr><td colspan="5" class="qb-empty">Loading products&hellip;</td></tr>
+                <tr><td colspan="6" class="qb-empty">Loading products&hellip;</td></tr>
             </tbody>
         </table>
     </div>

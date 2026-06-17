@@ -119,6 +119,11 @@ class RefreshProductCacheJob implements ShouldQueue
                 // Each line is a variant with nested product
                 $product = $obj['product'] ?? [];
 
+                // Normalize tags: bulk API may return array or string
+                $rawTags = $product['tags'] ?? '';
+                if (is_array($rawTags)) {
+                    $rawTags = implode(', ', $rawTags);
+                }
                 $products[] = [
                     'id'            => $product['id'] ?? '',
                     'title'         => $product['title'] ?? '',
@@ -128,6 +133,7 @@ class RefreshProductCacheJob implements ShouldQueue
                     'price'         => $obj['price'] ?? '0.00',
                     'inventory'         => $obj['inventoryQuantity'] ?? 0,
                     'inventory_tracked' => ($obj['inventoryPolicy'] ?? '') === 'DENY',
+                    'tags'              => $rawTags,
                 ];
             }
 
