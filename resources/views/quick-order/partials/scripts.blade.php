@@ -191,8 +191,10 @@
 
     function updateCartCount() {
         var count = Object.keys(cartItems).length;
-        document.getElementById('qb-cart-count').textContent = count;
-        document.getElementById('qb-add-all').disabled = count === 0;
+        var el = document.getElementById('qb-cart-count');
+        if (el) el.textContent = count;
+        var btn = document.getElementById('qb-add-all');
+        if (btn) btn.disabled = count === 0;
     }
 
     // ─── Add all to cart ──────────────────────────────────────────
@@ -300,29 +302,6 @@
         }
     };
 
-    // ─── Bottom: Add selected quantities via AJAX Cart ────────────
-
-    window.addSelectedToCart = async function() {
-        var btn = document.getElementById('qb-add-all');
-        var original = btn.innerHTML;
-
-        if (!Object.keys(cartItems).length) return;
-        btn.disabled = true;
-        btn.innerHTML = '\u23F3 Adding...';
-
-        try {
-            var items = Object.keys(cartItems).map(function(vid) {
-                return { id: vid.split('/').pop(), qty: cartItems[vid] };
-            });
-            await ajaxAddToCart(items);
-            window.location.href = '/cart';
-        } catch (e) {
-            alert('\u26A0\uFE0F Could not add items. Please try again.');
-            btn.disabled = false;
-            btn.innerHTML = original;
-        }
-    };
-
     // ─── CSV upload ───────────────────────────────────────────────
 
     window.handleCSV = function(input) {
@@ -356,21 +335,16 @@
         reader.readAsText(file);
     };
 
-    // ─── Drag & drop ──────────────────────────────────────────────
+    // ─── Drag & drop (on whole page) ─────────────────────────────
 
     (function() {
-        var zone = document.getElementById('qb-csv-zone');
-        zone.addEventListener('dragover', function(e) {
+        document.addEventListener('dragover', function(e) { e.preventDefault(); });
+        document.addEventListener('drop', function(e) {
             e.preventDefault();
-            zone.style.borderColor = 'var(--qb-green)';
-        });
-        zone.addEventListener('dragleave', function() {
-            zone.style.borderColor = '';
-        });
-        zone.addEventListener('drop', function(e) {
-            e.preventDefault();
-            zone.style.borderColor = '';
-            handleCSV({ files: e.dataTransfer.files });
+            var file = e.dataTransfer.files[0];
+            if (file && (file.name.endsWith('.csv') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+                handleCSV({ files: [file] });
+            }
         });
     })();
 
