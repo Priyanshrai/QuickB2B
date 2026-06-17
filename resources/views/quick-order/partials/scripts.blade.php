@@ -390,6 +390,41 @@
         }
     };
 
+    // ─── Select all / Deselect all visible ──────────────────────
+
+    window.selectAllVisible = function() {
+        var inputs = document.querySelectorAll('#qb-table tbody .qb-qty');
+        var allSelected = true;
+
+        // Check if all enabled inputs already have qty=1
+        inputs.forEach(function(input) {
+            if (!input.disabled && !(input.value > 0)) allSelected = false;
+        });
+
+        var count = 0;
+        inputs.forEach(function(input) {
+            if (!input.disabled) {
+                if (allSelected) {
+                    // Deselect all
+                    input.value = '';
+                    delete cartItems[input.dataset.id];
+                } else {
+                    // Select all
+                    input.value = 1;
+                    cartItems[input.dataset.id] = 1;
+                    count++;
+                }
+            }
+        });
+
+        updateCartCount();
+        if (allSelected) {
+            alert('All deselected.');
+        } else {
+            alert(count + ' products selected (qty=1). Click again to deselect.');
+        }
+    };
+
     // ─── CSV upload ───────────────────────────────────────────────
 
     window.handleCSV = function(input) {

@@ -38,7 +38,8 @@ class QuickOrderController extends Controller
             $allProducts = array_values(array_filter($allProducts, function ($p) use ($qLower) {
                 return str_contains(mb_strtolower($p['title'] ?? ''), $qLower)
                     || str_contains(mb_strtolower($p['sku'] ?? ''), $qLower)
-                    || str_contains(mb_strtolower($p['variant_title'] ?? ''), $qLower);
+                    || str_contains(mb_strtolower($p['variant_title'] ?? ''), $qLower)
+                    || str_contains(mb_strtolower($p['tags'] ?? ''), $qLower);
             }));
         }
 
