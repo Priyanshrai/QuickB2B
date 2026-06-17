@@ -177,7 +177,7 @@
     window.clearShopifyCart = async function() {
         var btn = document.getElementById('qb-clear-cart');
         var original = btn.textContent;
-        btn.textContent = '\u23F3 Clearing...';
+        btn.textContent = 'Clearing...';
         btn.disabled = true;
 
         try {
@@ -255,7 +255,7 @@
             }).join('\n');
 
             var skipOOS = confirm(
-                '\u26A0\uFE0F ' + oosItems.length + ' item(s) out of stock:\n\n' +
+                oosItems.length + ' item(s) out of stock:\n\n' +
                 oosNames + '\n\n' +
                 'Click OK to SKIP out-of-stock items\n' +
                 'Click Cancel to INCLUDE them as backorder'
@@ -288,7 +288,7 @@
 
         // ── Method 3: Draft Order ──
         if (method === 'draft') {
-            var email = prompt('\u2709\uFE0F Enter your email for invoice:', '');
+            var email = prompt('✉️ Enter your email for invoice:', '');
             if (!email) return;
 
             var drResp = await fetch('/apps/quick-order/api/draft-order', {
@@ -297,8 +297,8 @@
             });
             var drData = await drResp.json();
             alert(drData.invoice_url
-                ? '\u2705 Invoice sent to ' + email + '!\nOrder: ' + drData.draft_order
-                : '\u2705 Order: ' + drData.draft_order);
+                ? 'Invoice sent to ' + email + '!\nOrder: ' + drData.draft_order
+                : 'Order: ' + drData.draft_order);
         }
     };
 
@@ -328,7 +328,7 @@
 
             var status = document.getElementById('qb-csv-status');
             status.style.display = 'block';
-            status.textContent = '&#x2705; ' + count + ' products matched from CSV';
+            status.textContent = count + ' products matched from CSV';
 
             renderProducts(document.getElementById('qb-search').value);
         };

@@ -11,6 +11,10 @@ Route::get('/privacy', function () {
 
 // App Proxy — storefront Quick Order page + API (signed by Shopify, public)
 Route::middleware(['auth.proxy'])->group(function () {
+    Route::get('/apps/quick-order/sample-csv', function () {
+        return response()->download(public_path('sample-order.csv'));
+    });
+
     Route::get('/apps/quick-order', function () {
         $shop = Auth::user();
         return response(

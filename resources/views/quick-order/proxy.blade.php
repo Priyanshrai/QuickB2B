@@ -4,7 +4,7 @@
 
 {{-- Progress banner --}}
 <div id="qb-progress" style="display:none;background:var(--qb-green);color:#fff;padding:8px 20px;font-size:13px;font-weight:600;text-align:center;">
-    <span id="qb-progress-text">&#x1F504; Updating product catalog...</span>
+    <span id="qb-progress-text">Updating product catalog...</span>
     <span id="qb-progress-pct" style="margin-left:8px;opacity:.8;"></span>
 </div>
 
@@ -12,7 +12,7 @@
 
     {{-- Header --}}
     <div class="qb-header">
-        <h1>&#x26A1; Quick Order</h1>
+        <h1>Quick Order</h1>
         <p>Bulk order your products in one click. Built for B2B wholesale.</p>
     </div>
 
@@ -28,6 +28,10 @@
                     class="qb-btn" style="background:var(--qb-gray-100);color:var(--qb-gray-600);padding:8px 14px;font-size:12px;white-space:nowrap;">
                 &#x1F4E4; CSV
             </button>
+            <a href="/apps/quick-order/sample-csv" download
+               style="font-size:11px;color:var(--qb-green);text-decoration:none;white-space:nowrap;">
+                &#x1F4E5; Sample
+            </a>
             <input type="file" id="qb-csv-input" accept=".csv,.xlsx,.xls"
                    style="display:none;" onchange="handleCSV(this)">
 

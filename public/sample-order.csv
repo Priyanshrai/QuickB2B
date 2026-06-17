@@ -1,0 +1,14 @@
+SKU,Quantity
+sku-managed-1,50
+sku-untracked-1,25
+sku-hosted-1,10
+ice,5
+dawn,3
+powder,10
+$10,20
+$100,5
+,,
+,,,,
+,,  QuickB2B CSV Format Guide,,
+,,  Column 1: SKU or Product Name,,
+,,  Column 2: Quantity,,
