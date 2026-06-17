@@ -296,12 +296,30 @@
 
         // ── Method 3: Draft Order ──
         if (method === 'draft') {
+            // ── OOS choice dialog ──
+            var filterOos = true; // default: in-stock only
+            var oosCount = 0;
+            items.forEach(function(item) {
+                var p = products.find(function(prod) {
+                    return (prod.variant_id || '').indexOf(item.id) !== -1;
+                });
+                if (p && isOutOfStock(p)) oosCount++;
+            });
+
+            if (oosCount > 0) {
+                filterOos = confirm(
+                    oosCount + ' out-of-stock product(s) found.\n\n' +
+                    'Click OK → IN-STOCK ONLY (skip OOS)\n' +
+                    'Click Cancel → ALL products (include backorder)'
+                );
+            }
+
             var email = prompt('✉️ Enter your email for invoice:', '');
             if (!email) return;
 
             var drResp = await fetch('/apps/quick-order/api/draft-order', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ items: items, email: email }),
+                body: JSON.stringify({ items: items, email: email, filter_oos: filterOos }),
             });
             var drData = await drResp.json();
 
@@ -325,6 +343,7 @@
             // Small order → instant
             var resultMsg = 'Order: ' + drData.draft_order;
             if (drData.oos_skipped) resultMsg = drData.oos_skipped + ' OOS skipped.\n' + resultMsg;
+            if (!drData.filter_oos && drData.filter_oos !== undefined) resultMsg = 'Includes backorder.\n' + resultMsg;
             if (drData.invoice_url) resultMsg += '\nInvoice sent to ' + email + '!';
             alert(resultMsg);
         }

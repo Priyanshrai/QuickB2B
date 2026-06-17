@@ -114,6 +114,7 @@ class QuickOrderController extends Controller
 
         $items = $request->input('items', []);
         $email = $request->input('email');
+        $filterOos = $request->input('filter_oos', true); // default: in-stock only
         $shopDomain = $shop->getDomain()->toNative();
 
         if (empty($items)) {
@@ -137,33 +138,33 @@ class QuickOrderController extends Controller
             }
         }
 
-        // Filter: keep only in-stock (tracked+qty>0) or unlimited (untracked)
-        $filtered = [];
+        // ── Server-side OOS filter (only if user chose in-stock only) ──
         $oosCount = 0;
-        foreach ($items as $item) {
-            $vid = basename($item['id'] ?? '');
-            $stock = $stockMap[$vid] ?? null;
+        if ($filterOos) {
+            // Filter: keep only in-stock (tracked+qty>0) or unlimited (untracked)
+            $filtered = [];
+            foreach ($items as $item) {
+                $vid = basename($item['id'] ?? '');
+                $stock = $stockMap[$vid] ?? null;
 
-            if (!$stock) {
-                // Not in catalog → keep (safety)
-                $filtered[] = $item;
-            } elseif ($stock['tracked'] && $stock['qty'] <= 0) {
-                // Tracked + OOS → skip
-                $oosCount++;
-            } else {
-                // Untracked OR tracked + in-stock → keep
-                $filtered[] = $item;
+                if (!$stock) {
+                    $filtered[] = $item;
+                } elseif ($stock['tracked'] && $stock['qty'] <= 0) {
+                    $oosCount++;
+                } else {
+                    $filtered[] = $item;
+                }
             }
-        }
 
-        if (empty($filtered)) {
-            return response()->json([
-                'error' => 'All items were out of stock or unavailable.',
-                'oos_skipped' => $oosCount,
-            ], 422);
-        }
+            if (empty($filtered)) {
+                return response()->json([
+                    'error' => 'All items were out of stock or unavailable.',
+                    'oos_skipped' => $oosCount,
+                ], 422);
+            }
 
-        $items = $filtered;
+            $items = $filtered;
+        }
         // ── End OOS filter ────────────────────────────────────────
 
         // Large orders → background job
@@ -175,7 +176,11 @@ class QuickOrderController extends Controller
                 'queued' => true,
                 'orders' => $orders,
                 'oos_skipped' => $oosCount,
-                'message' => "Large order: {$orders} draft orders processing. " . ($oosCount ? "{$oosCount} OOS items skipped." : "") . " Invoice(s) will be sent to {$email}.",
+                'filter_oos' => $filterOos,
+                'message' => "Large order: {$orders} draft orders processing. "
+                    . ($filterOos && $oosCount ? "{$oosCount} OOS items skipped. " : "")
+                    . (!$filterOos ? "Includes backorder items. " : "")
+                    . "Invoice(s) will be sent to {$email}.",
             ]);
         }
 
@@ -203,9 +208,10 @@ class QuickOrderController extends Controller
                 'draft_order' => $draftOrder['name'] ?? 'Draft',
                 'invoice_url' => $invoiceUrl,
                 'oos_skipped' => $oosCount,
-                'message' => $invoiceUrl
-                    ? "Invoice sent to {$email}!"
-                    : 'Order created.',
+                'filter_oos' => $filterOos,
+                'message' => ($filterOos && $oosCount ? "{$oosCount} OOS skipped. " : "")
+                           . (!$filterOos ? "Includes backorder. " : "")
+                           . ($invoiceUrl ? "Invoice sent to {$email}!" : 'Order created.'),
             ]);
         } catch (\Throwable $e) {
             Log::error('QuickB2B: Draft order failed', ['error' => $e->getMessage()]);
