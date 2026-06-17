@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class QuickOrderPage extends Model
 {
+    /** Hidden marker in page body to identify pages created by this app. */
+    const PAGE_MARKER = '<!-- quickb2b-page -->';
+
     protected $fillable = [
         'user_id',
         'shopify_page_id',

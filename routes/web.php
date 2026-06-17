@@ -69,6 +69,8 @@ Route::middleware(['verify.shopify'])->group(function () {
         ->name('page.delete');
     Route::post('/page/link-menu', [\App\Http\Controllers\PageController::class, 'linkToMenu'])
         ->name('page.link-menu');
+    Route::post('/page/sync', [\App\Http\Controllers\PageController::class, 'syncPage'])
+        ->name('page.sync');
 });
 
 /*

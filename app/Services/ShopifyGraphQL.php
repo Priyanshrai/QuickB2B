@@ -219,6 +219,66 @@ class ShopifyGraphQL
         return static::updateMenu($shop, $menuId, $menuTitle, $items);
     }
 
+    // ─── Page Sync ─────────────────────────────────────────────────
+
+    /**
+     * Find our page(s) on Shopify by searching for title + filtering by marker.
+     * Catches quick-order, quick-order-1, quick-order-2, etc.
+     */
+    public static function fetchPageByHandle($shop, string $handle): ?array
+    {
+        $query = <<<'GQL'
+            query findPage($query: String!) {
+                pages(first: 10, query: $query) {
+                    edges {
+                        node { id title handle body isPublished }
+                    }
+                }
+            }
+        GQL;
+
+        $data = static::query($shop, $query, ['query' => "title:Quick Order"]);
+
+        foreach ($data['pages']['edges'] ?? [] as $edge) {
+            $node = $edge['node'] ?? [];
+            $body = $node['body'] ?? '';
+            $h    = $node['handle'] ?? '';
+            // Match by marker OR handle prefix
+            if (str_contains($body, 'quickb2b-page') || str_starts_with($h, 'quick-order')) {
+                // Clean up any extra duplicate pages on Shopify (keep only this one)
+                static::cleanupDuplicatePages($shop, $data['pages']['edges'] ?? [], $node['id']);
+                return $node;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Delete any duplicate pages with our marker that aren't the one we're keeping.
+     */
+    private static function cleanupDuplicatePages($shop, array $edges, string $keepId): void
+    {
+        foreach ($edges as $edge) {
+            $node = $edge['node'] ?? [];
+            $body = $node['body'] ?? '';
+            $id   = $node['id'] ?? '';
+            if ($id !== $keepId && str_contains($body, 'quickb2b-page')) {
+                try {
+                    static::deletePage($shop, $id);
+                    \Illuminate\Support\Facades\Log::info('QuickB2B: cleaned up duplicate page', [
+                        'deleted_id' => $id,
+                        'kept_id'    => $keepId,
+                    ]);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('QuickB2B: failed to cleanup duplicate', [
+                        'id' => $id, 'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+    }
+
     // ─── Internal Helpers ──────────────────────────────────────────
 
     /**

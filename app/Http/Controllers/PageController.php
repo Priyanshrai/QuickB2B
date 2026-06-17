@@ -11,6 +11,49 @@ use Illuminate\Support\Facades\Log;
 class PageController extends Controller
 {
     /**
+     * POST /page/sync
+     * Manual refresh — sync DB with Shopify.
+     */
+    public function syncPage(Request $request)
+    {
+        $shop = Auth::user();
+        $existing = QuickOrderPage::where('user_id', Auth::id())->first();
+        $shopifyPage = ShopifyGraphQL::fetchPageByHandle($shop, 'quick-order');
+
+        if ($shopifyPage) {
+            // Page exists on Shopify → upsert
+            if ($existing) {
+                $existing->update([
+                    'shopify_page_id'=> $shopifyPage['id'],
+                    'title'          => $shopifyPage['title'],
+                    'handle'         => $shopifyPage['handle'],
+                    'is_published'   => $shopifyPage['isPublished'] ?? true,
+                    'page_url'       => $shop->getDomain()->toNative() . '/pages/' . $shopifyPage['handle'],
+                ]);
+                return back()->with('success', '🔄 Synced! Page is live.');
+            }
+            QuickOrderPage::create([
+                'user_id'        => Auth::id(),
+                'shopify_page_id'=> $shopifyPage['id'],
+                'title'          => $shopifyPage['title'],
+                'handle'         => $shopifyPage['handle'],
+                'is_published'   => $shopifyPage['isPublished'] ?? true,
+                'menu_linked'    => false,
+                'page_url'       => $shop->getDomain()->toNative() . '/pages/' . $shopifyPage['handle'],
+            ]);
+            return back()->with('success', '🔄 Page found and synced!');
+        }
+
+        // Page NOT on Shopify — remove from DB if exists
+        if ($existing) {
+            $existing->delete();
+            return back()->with('success', '🔄 Page no longer exists on Shopify. Removed from dashboard.');
+        }
+
+        return back()->with('error', 'No Quick Order page found on your store.');
+    }
+
+    /**
      * POST /page/update-title
      * Update the page title on Shopify and in DB.
      */
