@@ -279,6 +279,56 @@ class ShopifyGraphQL
         }
     }
 
+    // ─── Product Data ──────────────────────────────────────────────
+
+    /**
+     * Fetch products with basic data for the quick order table.
+     */
+    public static function fetchProducts($shop): array
+    {
+        $allEdges = [];
+        $cursor = null;
+
+        do {
+            $afterArg = $cursor ? ', after: "' . $cursor . '"' : '';
+
+            $query = <<<GQL
+                {
+                    products(first: 50{$afterArg}) {
+                        edges {
+                            node {
+                                id
+                                title
+                                variants(first: 1) {
+                                    edges {
+                                        node { id sku price }
+                                    }
+                                }
+                            }
+                            cursor
+                        }
+                        pageInfo { hasNextPage }
+                    }
+                }
+            GQL;
+
+            $data = static::query($shop, $query);
+            $products = $data['products'] ?? [];
+            $edges = $products['edges'] ?? [];
+            $allEdges = array_merge($allEdges, $edges);
+
+            $pageInfo = $products['pageInfo'] ?? [];
+            if (!empty($pageInfo['hasNextPage']) && !empty($edges)) {
+                $lastEdge = end($edges);
+                $cursor = $lastEdge['cursor'] ?? null;
+            } else {
+                $cursor = null;
+            }
+        } while ($cursor);
+
+        return array_values($allEdges);
+    }
+
     // ─── Internal Helpers ──────────────────────────────────────────
 
     /**

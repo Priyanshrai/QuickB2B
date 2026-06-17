@@ -9,6 +9,20 @@ Route::get('/privacy', function () {
     return response()->file(public_path('privacy-policy.html'));
 });
 
+// App Proxy — storefront Quick Order page (signed by Shopify, public)
+Route::get('/apps/quick-order', function () {
+    $shop = Auth::user();
+    return view('quick-order.index', [
+        'shopDomain' => $shop->getDomain()->toNative(),
+    ]);
+})->middleware(['auth.proxy'])->name('proxy.quick-order');
+
+// App Proxy API — product data + add to cart (called from quick-order page)
+Route::middleware(['auth.proxy'])->group(function () {
+    Route::get('/api/quick-order/products', [\App\Http\Controllers\QuickOrderController::class, 'products']);
+    Route::post('/api/quick-order/add-bulk', [\App\Http\Controllers\QuickOrderController::class, 'addBulk']);
+});
+
 // Home — Dashboard
 Route::get('/', function () {
     return view('welcome');
