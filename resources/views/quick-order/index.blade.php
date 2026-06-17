@@ -107,7 +107,9 @@
 
         async function loadProducts() {
             try {
-                const resp = await fetch('/api/quick-order/products?shop=' + encodeURIComponent('{{ $shopDomain }}'));
+                const resp = await fetch('/apps/quick-order/api/products?shop=' + encodeURIComponent('{{ $shopDomain }}'), {
+                    headers: { 'ngrok-skip-browser-warning': 'true' }
+                });
                 const data = await resp.json();
                 products = data.products || [];
                 renderProducts();
@@ -173,9 +175,12 @@
             btn.textContent = '⏳ Adding to cart...';
 
             try {
-                const resp = await fetch('/api/quick-order/add-bulk', {
+                const resp = await fetch('/apps/quick-order/api/add-bulk', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'ngrok-skip-browser-warning': 'true'
+                    },
                     body: JSON.stringify({
                         shop: '{{ $shopDomain }}',
                         items: cartItems,

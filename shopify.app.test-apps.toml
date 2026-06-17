@@ -2,7 +2,7 @@
 
 client_id = "50bdfa24932c646503b540e29eadea0e"
 name = "Test Apps"
-application_url = "https://joey-unirrigated-normand.ngrok-free.dev/"
+application_url = "https://customized-giving-pulled-trail.trycloudflare.com/"
 embedded = true
 
 [webhooks]
@@ -16,10 +16,10 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://joey-unirrigated-normand.ngrok-free.dev/authenticate"
+  "https://customized-giving-pulled-trail.trycloudflare.com/authenticate"
 ]
 
 [app_proxy]
-url = "https://joey-unirrigated-normand.ngrok-free.dev"
+url = "https://customized-giving-pulled-trail.trycloudflare.com"
 subpath = "quick-order"
 prefix = "apps"

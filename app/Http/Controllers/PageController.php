@@ -30,6 +30,15 @@ class PageController extends Controller
                     'is_published'   => $shopifyPage['isPublished'] ?? true,
                     'page_url'       => $shop->getDomain()->toNative() . '/pages/' . $shopifyPage['handle'],
                 ]);
+                // Update body to include redirect if it's old
+                $body = $shopifyPage['body'] ?? '';
+                if (!str_contains($body, '/apps/quick-order')) {
+                    ShopifyGraphQL::updatePageBody($shop, $shopifyPage['id'],
+                        \App\Models\QuickOrderPage::PAGE_MARKER
+                        . '<p>Redirecting to Quick Order...</p>'
+                        . '<script>window.location.href="/apps/quick-order"</script>'
+                    );
+                }
                 return back()->with('success', '🔄 Synced! Page is live.');
             }
             QuickOrderPage::create([

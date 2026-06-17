@@ -76,6 +76,28 @@ class ShopifyGraphQL
     }
 
     /**
+     * Update a page body. Returns updated page data.
+     */
+    public static function updatePageBody($shop, string $pageId, string $body): array
+    {
+        $mutation = <<<'GQL'
+            mutation pageUpdate($id: ID!, $page: PageUpdateInput!) {
+                pageUpdate(id: $id, page: $page) {
+                    page { id title handle }
+                    userErrors { field message }
+                }
+            }
+        GQL;
+
+        $data = static::query($shop, $mutation, [
+            'id'   => $pageId,
+            'page' => ['body' => $body],
+        ]);
+
+        return $data['pageUpdate'] ?? [];
+    }
+
+    /**
      * Delete a page from the online store.
      */
     public static function deletePage($shop, string $pageId): array

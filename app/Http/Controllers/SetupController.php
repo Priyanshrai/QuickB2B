@@ -25,7 +25,11 @@ class SetupController extends Controller
         }
 
         // ─── Step 1: Create the page ─────────────────────────────────
-        $result = ShopifyGraphQL::createPage($shop, 'Quick Order', QuickOrderPage::PAGE_MARKER . '<p>Loading QuickB2B order form...</p>');
+        $result = ShopifyGraphQL::createPage($shop, 'Quick Order',
+            QuickOrderPage::PAGE_MARKER
+            . '<p>Redirecting to Quick Order...</p>'
+            . '<script>window.location.href="/apps/quick-order"</script>'
+        );
 
         $userErrors = $result['userErrors'] ?? [];
         if (!empty($userErrors)) {
