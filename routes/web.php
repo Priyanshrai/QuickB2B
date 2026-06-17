@@ -57,6 +57,10 @@ Route::middleware(['verify.shopify'])->group(function () {
             return back()->with('error', 'Could not cancel subscription. Please try again.');
         }
     })->name('plans.cancel');
+
+    // One-click setup: create Quick Order page + add to navigation menu
+    Route::post('/setup/create-page', [\App\Http\Controllers\SetupController::class, 'createPageAndMenu'])
+        ->name('setup.create-page');
 });
 
 /*
