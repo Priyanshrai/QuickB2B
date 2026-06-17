@@ -24,113 +24,123 @@
 @endphp
 
 @section('content')
-
     <ui-title-bar title="QuickB2B"></ui-title-bar>
-
     @include('components.nav-menu')
 
-    <s-page heading="Dashboard" style="display:flex;flex-direction:column;gap:24px;">
+    <s-page heading="Dashboard">
+        <s-stack gap="large-200">
 
-        <s-banner status="info">
-            🏪 <strong>{{ $shopDomain ?? Auth::user()->name }}</strong> — Welcome to QuickB2B
-        </s-banner>
-
-        @if (session('success'))
-            <s-banner status="success">{{ session('success') }}</s-banner>
-        @endif
-        @if (session('error'))
-            <s-banner status="critical">{{ session('error') }}</s-banner>
-        @endif
-
-        {{-- ───── Page Status Card ───── --}}
-        <s-section heading="📄 Quick Order Page">
-            @if ($page)
-                {{-- Status: LIVE --}}
-                <s-box padding="large-200" style="display:flex;flex-direction:column;gap:16px;">
-                    <s-stack gap="base" distribution="space-between" alignment="center">
-                        <s-stack gap="small" alignment="center">
-                            <s-badge tone="success">Live</s-badge>
-                            <s-text fontWeight="bold">{{ $page->title }}</s-text>
-                        </s-stack>
-                        <s-text tone="subdued" variant="bodySm">
-                            {{ $page->created_at->diffForHumans() }}
-                        </s-text>
-                    </s-stack>
-
-                    <s-stack gap="base" style="flex-wrap:wrap;">
-                        <s-text variant="bodySm">
-                            🔗 <a href="https://{{ $page->page_url }}" target="_blank" rel="noopener">
-                                {{ $page->page_url }}
-                            </a>
-                        </s-text>
-                        <s-badge tone="{{ $page->is_published ? 'success' : 'critical' }}">
-                            {{ $page->is_published ? 'Published' : 'Hidden' }}
-                        </s-badge>
-                        <s-badge tone="{{ $page->menu_linked ? 'success' : 'warning' }}">
-                            {{ $page->menuStatusLabel() }}
-                        </s-badge>
-                    </s-stack>
-
-                    <s-stack gap="base" direction="inline" style="flex-wrap:wrap;">
-                        {{-- Refresh --}}
-                        <form method="POST" action="{{ route('page.sync') }}" style="display:inline;">
-                            @csrf
-                            @sessionToken
-                            <input type="hidden" name="host" value="{{ $host }}">
-                            <s-button type="submit" variant="secondary">🔄 Refresh</s-button>
-                        </form>
-
-                        {{-- Edit Title --}}
-                        <s-button variant="secondary" onclick="shopify.modal.show('edit-title-modal')">
-                            ✏️ Edit Title
-                        </s-button>
-
-                        {{-- Link to Menu (only if not linked) --}}
-                        @if (!$page->menu_linked)
-                            <form method="POST" action="{{ route('page.link-menu') }}" style="display:inline;">
-                                @csrf
-                                @sessionToken
-                                <input type="hidden" name="host" value="{{ $host }}">
-                                <s-button type="submit" variant="secondary">
-                                    🔗 Link to Menu
-                                </s-button>
-                            </form>
-                        @endif
-
-                        {{-- Delete --}}
-                        <s-button variant="critical" onclick="shopify.modal.show('delete-page-modal')">
-                            🗑️ Delete Page
-                        </s-button>
-                    </s-stack>
-                </s-box>
-            @else
-                {{-- Status: No page yet — show create button --}}
-                <s-banner tone="info" style="margin-bottom:16px;">
-                    No Quick Order page yet. Create one or refresh to find an existing one.
-                </s-banner>
-                <s-stack direction="inline" gap="base">
-                    <form method="POST" action="{{ route('setup.create-page') }}">
-                        @csrf
-                        @sessionToken
-                        <input type="hidden" name="host" value="{{ $host }}">
-                        <s-button type="submit" variant="primary">📄 Create Quick Order Page + Add to Menu</s-button>
-                    </form>
-                    <form method="POST" action="{{ route('page.sync') }}">
-                        @csrf
-                        @sessionToken
-                        <input type="hidden" name="host" value="{{ $host }}">
-                        <s-button type="submit" variant="secondary">🔄 Find Existing Page</s-button>
-                    </form>
-                </s-stack>
+            {{-- Flash Messages --}}
+            @if (session('success'))
+                <s-banner tone="success" heading="Success" dismissible>{{ session('success') }}</s-banner>
             @endif
-        </s-section>
+            @if (session('error'))
+                <s-banner tone="critical" heading="Error" dismissible>{{ session('error') }}</s-banner>
+            @endif
 
-        <s-section heading="Getting Started">
-            <s-paragraph tone="subdued">
-                Your Shopify app is ready. Start building your features here.
-            </s-paragraph>
-        </s-section>
+            {{-- ───── Quick Order Page Card ───── --}}
+            <s-section heading="Quick Order Page">
+                @if ($page)
+                    <s-box padding="large-200" background="base" border="base" borderRadius="large-100">
+                        <s-stack gap="large-100">
+                            <s-stack direction="inline" gap="base" justifyContent="space-between" alignItems="center">
+                                <s-stack direction="inline" gap="small" alignItems="center">
+                                    <s-badge tone="success" size="large">Live</s-badge>
+                                    <s-text fontWeight="bold">{{ $page->title }}</s-text>
+                                </s-stack>
+                                <s-text tone="subdued" variant="bodySm">Created {{ $page->created_at->diffForHumans() }}</s-text>
+                            </s-stack>
 
+                            <s-stack direction="inline" gap="base" style="flex-wrap:wrap;">
+                                <s-text variant="bodySm">
+                                    <a href="https://{{ $page->page_url }}" target="_blank" rel="noopener" style="color:var(--p-color-text-interactive);text-decoration:none;">🔗 {{ $page->page_url }}</a>
+                                </s-text>
+                                <s-badge tone="info">Published</s-badge>
+                                @if ($page->menu_linked)
+                                    <s-badge tone="success">Linked in navigation</s-badge>
+                                @else
+                                    <s-badge tone="caution">Not in menu</s-badge>
+                                @endif
+                            </s-stack>
+
+                            <s-stack direction="inline" gap="base" style="flex-wrap:wrap;">
+                                <form method="POST" action="{{ route('page.sync') }}" style="display:inline;">
+                                    @csrf @sessionToken
+                                    <input type="hidden" name="host" value="{{ $host }}">
+                                    <s-button type="submit" variant="secondary">🔄 Refresh</s-button>
+                                </form>
+                                <s-button variant="secondary" onclick="shopify.modal.show('edit-title-modal')">✏️ Edit Title</s-button>
+                                @if (!$page->menu_linked)
+                                    <form method="POST" action="{{ route('page.link-menu') }}" style="display:inline;">
+                                        @csrf @sessionToken
+                                        <input type="hidden" name="host" value="{{ $host }}">
+                                        <s-button type="submit" variant="secondary">🔗 Link to Menu</s-button>
+                                    </form>
+                                @endif
+                                <s-button variant="primary" tone="critical" onclick="shopify.modal.show('delete-page-modal')">🗑️ Delete Page</s-button>
+                            </s-stack>
+                        </s-stack>
+                    </s-box>
+                @else
+                    <s-banner tone="info" heading="No Page Yet">
+                        Create a Quick Order page to let wholesale customers place bulk orders instantly.
+                    </s-banner>
+                    <s-stack direction="inline" gap="base" style="margin-top:16px;">
+                        <form method="POST" action="{{ route('setup.create-page') }}">
+                            @csrf @sessionToken
+                            <input type="hidden" name="host" value="{{ $host }}">
+                            <s-button type="submit" variant="primary">📄 Create Page + Add to Menu</s-button>
+                        </form>
+                        <form method="POST" action="{{ route('page.sync') }}">
+                            @csrf @sessionToken
+                            <input type="hidden" name="host" value="{{ $host }}">
+                            <s-button type="submit" variant="secondary">🔄 Find Existing Page</s-button>
+                        </form>
+                    </s-stack>
+                @endif
+            </s-section>
+
+            {{-- ───── Feature Overview ───── --}}
+            <s-section heading="What QuickB2B Does">
+                <s-paragraph tone="subdued" style="margin-bottom:16px;">
+                    A <strong>spreadsheet-like ordering experience</strong> for wholesale &amp; B2B customers. Type quantities, upload CSV, reorder from history — all in one place.
+                </s-paragraph>
+
+                <s-stack gap="none">
+                    <s-box padding="large-100" borderColor="base" borderWidth="none none small none">
+                        <s-stack direction="inline" gap="large-100" alignItems="start">
+                            <s-badge tone="info" size="large" icon="chart-bar">Bulk Order Table</s-badge>
+                            <s-paragraph tone="subdued">Searchable product list with quantity inputs. One "Add All to Cart" button instead of clicking hundreds of times.</s-paragraph>
+                        </s-stack>
+                    </s-box>
+                    <s-box padding="large-100" borderColor="base" borderWidth="none none small none">
+                        <s-stack direction="inline" gap="large-100" alignItems="start">
+                            <s-badge tone="info" size="large" icon="upload">CSV Upload</s-badge>
+                            <s-paragraph tone="subdued">Drag and drop an Excel file. Products are matched automatically and added to cart — no manual entry.</s-paragraph>
+                        </s-stack>
+                    </s-box>
+                    <s-box padding="large-100" borderColor="base" borderWidth="none none small none">
+                        <s-stack direction="inline" gap="large-100" alignItems="start">
+                            <s-badge tone="info" size="large" icon="refresh">Reorder from History</s-badge>
+                            <s-paragraph tone="subdued">One-click reorder from past purchases. Last week's order back in cart instantly.</s-paragraph>
+                        </s-stack>
+                    </s-box>
+                    <s-box padding="large-100" borderColor="base" borderWidth="none none small none">
+                        <s-stack direction="inline" gap="large-100" alignItems="start">
+                            <s-badge tone="info" size="large" icon="dollar-sign">Customer Pricing</s-badge>
+                            <s-paragraph tone="subdued">Different prices for different customers. VIP wholesale sees $5, retail sees $10 — automatically applied.</s-paragraph>
+                        </s-stack>
+                    </s-box>
+                    <s-box padding="large-100">
+                        <s-stack direction="inline" gap="large-100" alignItems="start">
+                            <s-badge tone="info" size="large" icon="package">Stock Visibility</s-badge>
+                            <s-paragraph tone="subdued">Inventory levels shown inline. Customers see "Only 5 left!" before they order — no surprises.</s-paragraph>
+                        </s-stack>
+                    </s-box>
+                </s-stack>
+            </s-section>
+
+        </s-stack>
     </s-page>
 
     {{-- ═══════════════════════════════════════════════════════ --}}
