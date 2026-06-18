@@ -155,9 +155,9 @@
             '<td><strong>' + productLabel + '</strong>' + (oos ? ' <em>OOS</em>' : '') + '</td>' +
             '<td>' + (p.sku || '—') + '</td>' +
             '<td>' + (tagsHtml || '—') + '</td>' +
-            '<td>$' + parseFloat(p.price).toFixed(2) + '</td>' +
-            '<td>' + getStockLabel(p.inventory, p.inventory_tracked) + '</td>' +
-            '<td><input type="number" min="0" value="' + qty +
+            '<td class="qb-col-price">$' + parseFloat(p.price).toFixed(2) + '</td>' +
+            '<td class="qb-col-stock">' + getStockLabel(p.inventory, p.inventory_tracked) + '</td>' +
+            '<td class="qb-col-qty"><input type="number" min="0" value="' + qty +
                 '" placeholder="0" data-id="' + p.variant_id +
                 '" onchange="updateCart(this)"' + disabledAttr + '></td>' +
             '</tr>';
@@ -195,6 +195,7 @@
 
 
     window.clearTableQty = function() {
+        if (!confirm('Clear all entered quantities?')) return;
         cartItems = {};
         renderProducts();
     };
@@ -216,6 +217,10 @@
 
     function updateCartCount() {
         var count = Object.keys(cartItems).length;
+        var info = document.getElementById('qb-selected-info');
+        if (info) {
+            info.textContent = count > 0 ? count + ' product(s) selected' : 'All products included (qty=1)';
+        }
         var el = document.getElementById('qb-cart-count');
         if (el) el.textContent = count;
         var btn = document.getElementById('qb-add-all');
@@ -247,7 +252,7 @@
     // ─── Smart Cart: permalink / AJAX / Draft Order ──────────────
 
     window.smartCart = async function(method) {
-        // Loading spinner — Polaris s-button loading attribute
+        // Loading spinner — disable clicked button
         var btnMap = { draft: '#qb-btn-draft', ajax: '#qb-btn-ajax', permalink: '#qb-btn-permalink' };
         var clickedBtn = document.querySelector(btnMap[method]);
         if (clickedBtn) { clickedBtn.disabled = true; }
@@ -424,6 +429,7 @@
         });
         updateCartCount();
         if (count) alert(count + ' products selected.');
+        else alert('All products on this page are out of stock.');
     };
 
     // ─── CSV upload ───────────────────────────────────────────────
