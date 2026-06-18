@@ -200,6 +200,8 @@ class ShopifyGraphQL
 
     /**
      * Add a single page link to a menu (appends without removing existing items).
+     * Automatically deduplicates — removes any existing links to the same page
+     * before adding exactly one fresh link. Prevents double-menu bugs.
      */
     public static function addPageToMenu($shop, string $menuId, string $menuTitle, string $pageId, string $linkTitle): array
     {
@@ -207,15 +209,26 @@ class ShopifyGraphQL
         $menu = static::fetchMenuWithItems($shop, $menuId);
         $existingItems = $menu['items'] ?? [];
 
-        // Map existing items to update format (include id)
-        $items = array_map(fn ($item) => [
-            'id'         => $item['id'],
-            'title'      => $item['title'],
-            'type'       => $item['type'],
-            'resourceId' => $item['resourceId'] ?? null,
-        ], $existingItems);
+        // Map existing items to update format (include id) — but skip any
+        // existing links to the SAME page (deduplication: removes old duplicates)
+        $items = [];
+        $alreadyLinked = false;
+        foreach ($existingItems as $item) {
+            $rid = $item['resourceId'] ?? '';
+            if ($item['type'] === 'PAGE' && $rid === $pageId) {
+                // Found existing link — skip it (will be re-added once at the end)
+                $alreadyLinked = true;
+                continue;
+            }
+            $items[] = [
+                'id'         => $item['id'],
+                'title'      => $item['title'],
+                'type'       => $item['type'],
+                'resourceId' => $item['resourceId'] ?? null,
+            ];
+        }
 
-        // Append the new page link
+        // Append exactly one fresh link
         $items[] = [
             'title'      => $linkTitle,
             'type'       => 'PAGE',
@@ -226,7 +239,7 @@ class ShopifyGraphQL
     }
 
     /**
-     * Remove a page link from a menu while keeping all other items.
+     * Remove ALL occurrences of a page from a menu (safety deduplication).
      */
     public static function removePageFromMenu($shop, string $menuId, string $pageId): array
     {
