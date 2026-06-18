@@ -10,6 +10,14 @@
     var totalProducts = 0;
     var totalPages = 1;
 
+    // ─── HTML escape helper ──────────────────────────────────────
+
+    function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     // ─── Load products from backend ───────────────────────────────
 
     async function loadProducts(query, page, perPage) {
@@ -152,13 +160,13 @@
         }
 
         return '<tr>' +
-            '<td><strong>' + productLabel + '</strong>' + (oos ? ' <em>OOS</em>' : '') + '</td>' +
-            '<td>' + (p.sku || '—') + '</td>' +
-            '<td>' + (tagsHtml || '—') + '</td>' +
+            '<td><strong>' + escapeHtml(productLabel) + '</strong>' + (oos ? ' <em>OOS</em>' : '') + '</td>' +
+            '<td>' + escapeHtml(p.sku || '—') + '</td>' +
+            '<td>' + escapeHtml(tagsHtml || '—') + '</td>' +
             '<td class="qb-col-price">$' + parseFloat(p.price).toFixed(2) + '</td>' +
             '<td class="qb-col-stock">' + getStockLabel(p.inventory, p.inventory_tracked) + '</td>' +
             '<td class="qb-col-qty"><input type="number" min="0" value="' + qty +
-                '" placeholder="0" data-id="' + p.variant_id +
+                '" placeholder="0" data-id="' + escapeHtml(p.variant_id) +
                 '" onchange="updateCart(this)"' + disabledAttr + '></td>' +
             '</tr>';
     }
@@ -401,6 +409,9 @@
     window.refreshCatalog = async function() {
         if (!confirm('Refresh product catalog from Shopify? This may take 1-2 minutes.')) return;
 
+        var btn = document.getElementById('qb-btn-refresh');
+        if (btn) { btn.disabled = true; btn.textContent = 'Refreshing...'; }
+
         // Hide table, show progress
         document.querySelector('#qb-table tbody').innerHTML =
             '<tr><td colspan="6">Starting catalog refresh...</td></tr>';
@@ -408,10 +419,19 @@
         var resp = await fetch('/apps/quick-order/api/products/refresh', { method: 'POST' });
         var data = await resp.json();
 
+        if (data.status === 'already_running') {
+            alert('Catalog refresh is already in progress (' + data.percent + '% done). Please wait.');
+            pollCatalogStatus(function() { loadProducts(); if (btn) { btn.disabled = false; btn.textContent = 'Refresh'; } });
+            return;
+        }
+
         if (data.status === 'started') {
             pollCatalogStatus(function() {
                 loadProducts();
+                if (btn) { btn.disabled = false; btn.textContent = 'Refresh'; }
             });
+        } else {
+            if (btn) { btn.disabled = false; btn.textContent = 'Refresh'; }
         }
     };
 
@@ -480,7 +500,7 @@
         document.addEventListener('drop', function(e) {
             e.preventDefault();
             var file = e.dataTransfer.files[0];
-            if (file && (file.name.endsWith('.csv') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+            if (file && file.name.endsWith('.csv')) {
                 handleCSV({ files: [file] });
             }
         });

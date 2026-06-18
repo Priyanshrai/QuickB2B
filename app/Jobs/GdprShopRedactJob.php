@@ -8,6 +8,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use stdClass;
 
 /**
@@ -36,9 +37,12 @@ class GdprShopRedactJob implements ShouldQueue
             return;
         }
 
+        // Delete all cached storage for this shop
+        Storage::deleteDirectory("quickb2b/{$this->domain}");
+
         // Permanently delete the shop/user record
         $shop->forceDelete();
 
-        Log::info('GDPR shop/redact: all data deleted', ['domain' => $this->domain, 'shop_id' => $shop->id]);
+        Log::info('GDPR shop/redact: all data deleted (DB + storage)', ['domain' => $this->domain, 'shop_id' => $shop->id]);
     }
 }

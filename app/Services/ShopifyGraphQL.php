@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Gnikyt\BasicShopifyAPI\ResponseAccess;
+use Illuminate\Support\Facades\Log;
 
 class ShopifyGraphQL
 {
@@ -13,6 +14,14 @@ class ShopifyGraphQL
     {
         $response = $shop->api()->graph($query, $variables);
         $body = $response['body'] ?? [];
+
+        // Log top-level GraphQL errors (partial failures, deprecations, cost warnings)
+        if (!empty($body['errors'])) {
+            Log::warning('ShopifyGraphQL: query returned errors', [
+                'errors' => $body['errors'],
+            ]);
+        }
+
         $data = static::unwrap($body['data'] ?? []);
 
         return $data;
@@ -244,10 +253,10 @@ class ShopifyGraphQL
     // ─── Page Sync ─────────────────────────────────────────────────
 
     /**
-     * Find our page(s) on Shopify by searching for title + filtering by marker.
+     * Find our page on Shopify by searching title + filtering by marker.
      * Catches quick-order, quick-order-1, quick-order-2, etc.
      */
-    public static function fetchPageByHandle($shop, string $handle): ?array
+    public static function fetchQuickOrderPage($shop): ?array
     {
         $query = <<<'GQL'
             query findPage($query: String!) {
@@ -288,12 +297,12 @@ class ShopifyGraphQL
             if ($id !== $keepId && str_contains($body, 'quickb2b-page')) {
                 try {
                     static::deletePage($shop, $id);
-                    \Illuminate\Support\Facades\Log::info('QuickB2B: cleaned up duplicate page', [
+                    Log::info('QuickB2B: cleaned up duplicate page', [
                         'deleted_id' => $id,
                         'kept_id'    => $keepId,
                     ]);
                 } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning('QuickB2B: failed to cleanup duplicate', [
+                    Log::warning('QuickB2B: failed to cleanup duplicate', [
                         'id' => $id, 'error' => $e->getMessage(),
                     ]);
                 }
@@ -322,7 +331,7 @@ class ShopifyGraphQL
                         node {
                             id
                             title
-                            variants(first: 1) {
+                            variants(first: 100) {
                                 edges {
                                     node { id sku price inventoryQuantity inventoryPolicy }
                                 }

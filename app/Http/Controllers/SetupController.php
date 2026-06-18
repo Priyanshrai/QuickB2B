@@ -48,7 +48,7 @@ class SetupController extends Controller
             'handle'         => $page['handle'],
             'is_published'   => true,
             'menu_linked'    => false,
-            'page_url'       => $shop->getDomain()->toNative() . '/pages/' . $page['handle'],
+            'page_url'       => 'https://' . $shop->getDomain()->toNative() . '/pages/' . $page['handle'],
         ]);
 
         // ─── Step 2: Find the main navigation menu ──────────────────

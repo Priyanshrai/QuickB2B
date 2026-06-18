@@ -108,7 +108,14 @@ class RefreshProductCacheJob implements ShouldQueue
             // Step 3: Download & parse JSONL
             $this->setProgress('downloading', 85);
 
-            $jsonl = file_get_contents($url);
+            $ctx = stream_context_create(['http' => ['timeout' => 120]]);
+            $jsonl = @file_get_contents($url, false, $ctx);
+
+            if ($jsonl === false) {
+                $this->setProgress('failed', 0, 'Could not download bulk operation data');
+                return;
+            }
+
             $products = [];
 
             foreach (explode("\n", $jsonl) as $line) {
@@ -116,6 +123,8 @@ class RefreshProductCacheJob implements ShouldQueue
                 if (empty($line)) continue;
 
                 $obj = json_decode($line, true);
+                if (!$obj) continue;
+
                 // Each line is a variant with nested product
                 $product = $obj['product'] ?? [];
 

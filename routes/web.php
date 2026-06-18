@@ -10,13 +10,16 @@ Route::get('/privacy', function () {
 });
 
 // App Proxy — storefront Quick Order page + API (signed by Shopify, public)
-Route::middleware(['auth.proxy'])->group(function () {
+Route::middleware(['auth.proxy', 'throttle:120,1'])->group(function () {
     Route::get('/apps/quick-order/sample-csv', function () {
         return response()->download(public_path('sample-order.csv'));
     });
 
     Route::get('/apps/quick-order', function () {
         $shop = Auth::user();
+        if (!$shop) {
+            return response('Unauthorized', 401);
+        }
         return response(
             view('quick-order.proxy', ['shopDomain' => $shop->getDomain()->toNative()])
         )->header('Content-Type', 'application/liquid');
@@ -48,7 +51,7 @@ Route::middleware(['verify.shopify'])->group(function () {
             $charge = app(\Osiset\ShopifyApp\Actions\CreateRecurringCharge::class);
             $charge($shop->getId(), [
                 'name' => 'Pro Plan',
-                'price' => 4.99,
+                'price' => 9.99,
                 'trial_days' => 7,
                 'test' => config('shopify-app.billing.test', true),
             ]);

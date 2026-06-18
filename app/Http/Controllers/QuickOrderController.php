@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\CreateDraftOrderJob;
+use App\Jobs\RefreshProductCacheJob;
 use App\Services\ShopifyGraphQL;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class QuickOrderController extends Controller
 {
@@ -23,29 +26,21 @@ class QuickOrderController extends Controller
         $shopDomain = $shop->getDomain()->toNative();
         $filePath = "quickb2b/{$shopDomain}/products.json";
 
-        if (!\Illuminate\Support\Facades\Storage::exists($filePath)) {
-            \App\Jobs\RefreshProductCacheJob::dispatch($shopDomain);
+        if (!Storage::exists($filePath)) {
+            RefreshProductCacheJob::dispatch($shopDomain);
             return response()->json(['products' => [], 'hasMore' => false, 'source' => 'waiting']);
         }
 
         // Read all products from file
-        $allProducts = json_decode(\Illuminate\Support\Facades\Storage::get($filePath), true) ?: [];
+        $allProducts = json_decode(Storage::get($filePath), true) ?: [];
 
         // Server-side search
         $q = trim($request->query('q', ''));
-        if ($q !== '') {
-            $qLower = mb_strtolower($q);
-            $allProducts = array_values(array_filter($allProducts, function ($p) use ($qLower) {
-                return str_contains(mb_strtolower($p['title'] ?? ''), $qLower)
-                    || str_contains(mb_strtolower($p['sku'] ?? ''), $qLower)
-                    || str_contains(mb_strtolower($p['variant_title'] ?? ''), $qLower)
-                    || str_contains(mb_strtolower($p['tags'] ?? ''), $qLower);
-            }));
-        }
+        $allProducts = $this->filterProductsBySearch($allProducts, $q);
 
         $total = count($allProducts);
 
-        // Paginate: user-selectable per_page (10-1000, default 100)
+        // Paginate: user-selectable per_page (10-500, default 50)
         $page = max(1, (int) $request->query('page', 1));
         $perPage = min(500, max(10, (int) $request->query('per_page', 50)));
         $offset = ($page - 1) * $perPage;
@@ -77,22 +72,15 @@ class QuickOrderController extends Controller
         $shopDomain = $shop->getDomain()->toNative();
         $filePath = "quickb2b/{$shopDomain}/products.json";
 
-        if (!\Illuminate\Support\Facades\Storage::exists($filePath)) {
+        if (!Storage::exists($filePath)) {
             return response()->json(['error' => 'No products cached yet'], 503);
         }
 
-        $allProducts = json_decode(\Illuminate\Support\Facades\Storage::get($filePath), true) ?: [];
+        $allProducts = json_decode(Storage::get($filePath), true) ?: [];
 
         // Optional search filter
         $q = trim($request->input('q', ''));
-        if ($q !== '') {
-            $qLower = mb_strtolower($q);
-            $allProducts = array_values(array_filter($allProducts, function ($p) use ($qLower) {
-                return str_contains(mb_strtolower($p['title'] ?? ''), $qLower)
-                    || str_contains(mb_strtolower($p['sku'] ?? ''), $qLower)
-                    || str_contains(mb_strtolower($p['tags'] ?? ''), $qLower);
-            }));
-        }
+        $allProducts = $this->filterProductsBySearch($allProducts, $q);
 
         // Return variant IDs for client-side AJAX cart batching
         $variantIds = [];
@@ -118,7 +106,8 @@ class QuickOrderController extends Controller
 
         $items = $request->input('items', []);
         $email = $request->input('email');
-        $filterOos = $request->input('filter_oos', true); // default: in-stock only
+        // Normalize boolean: accept JSON bool, string "true"/"false", or 1/0
+        $filterOos = filter_var($request->input('filter_oos', true), FILTER_VALIDATE_BOOL);
         $shopDomain = $shop->getDomain()->toNative();
 
         if (empty($items)) {
@@ -127,8 +116,8 @@ class QuickOrderController extends Controller
 
         // ── Server-side OOS filter against JSON catalog ──────────
         $filePath = "quickb2b/{$shopDomain}/products.json";
-        $catalog = \Illuminate\Support\Facades\Storage::exists($filePath)
-            ? json_decode(\Illuminate\Support\Facades\Storage::get($filePath), true) ?: []
+        $catalog = Storage::exists($filePath)
+            ? json_decode(Storage::get($filePath), true) ?: []
             : [];
 
         // Build lookup: variant_id (last segment) → inventory data
@@ -171,10 +160,11 @@ class QuickOrderController extends Controller
         }
         // ── End OOS filter ────────────────────────────────────────
 
-        // Large orders → background job
-        if (count($items) > 499) {
-            $orders = (int) ceil(count($items) / 499);
-            \App\Jobs\CreateDraftOrderJob::dispatch($shopDomain, $items, $email);
+        // Large orders → background job (Shopify limit: 500 line items per draft order)
+        $draftLimit = 499;
+        if (count($items) > $draftLimit) {
+            $orders = (int) ceil(count($items) / $draftLimit);
+            CreateDraftOrderJob::dispatch($shopDomain, $items, $email);
 
             return response()->json([
                 'queued' => true,
@@ -197,8 +187,8 @@ class QuickOrderController extends Controller
 
             $result = ShopifyGraphQL::createDraftOrder($shop, $lineItems, $email);
 
-            if (!empty($result['userErrors'])) {
-                Log::error('QuickB2B: Draft order errors', ['errors' => $result['userErrors']]);
+            if (!$result || !empty($result['userErrors'])) {
+                Log::error('QuickB2B: Draft order errors', ['errors' => $result['userErrors'] ?? 'GraphQL returned null']);
                 return response()->json(['error' => 'Could not create order'], 500);
             }
 
@@ -236,17 +226,17 @@ class QuickOrderController extends Controller
 
         $path = "quickb2b/{$shop->getDomain()->toNative()}/draft_order_progress.json";
 
-        if (!\Illuminate\Support\Facades\Storage::exists($path)) {
+        if (!Storage::exists($path)) {
             return response()->json(['status' => 'idle']);
         }
 
         return response()->json(
-            json_decode(\Illuminate\Support\Facades\Storage::get($path), true)
+            json_decode(Storage::get($path), true)
         );
     }
 
     /**
-     * POST /api/quick-order/products/status
+     * GET /apps/quick-order/api/products/status
      * Progress of background product cache refresh.
      */
     public function productsStatus()
@@ -259,12 +249,12 @@ class QuickOrderController extends Controller
         $shopDomain = $shop->getDomain()->toNative();
         $progressPath = "quickb2b/{$shopDomain}/progress.json";
 
-        if (!\Illuminate\Support\Facades\Storage::exists($progressPath)) {
+        if (!Storage::exists($progressPath)) {
             return response()->json(['status' => 'idle', 'percent' => 0]);
         }
 
         return response()->json(
-            json_decode(\Illuminate\Support\Facades\Storage::get($progressPath), true)
+            json_decode(Storage::get($progressPath), true)
         );
     }
 
@@ -297,7 +287,7 @@ class QuickOrderController extends Controller
     }
 
     /**
-     * POST /api/draft-order/refresh
+     * POST /apps/quick-order/api/products/refresh
      * Manually trigger product catalog refresh.
      */
     public function refreshProducts()
@@ -308,13 +298,47 @@ class QuickOrderController extends Controller
         }
 
         $shopDomain = $shop->getDomain()->toNative();
+        $progressPath = "quickb2b/{$shopDomain}/progress.json";
+
+        // Guard: prevent overlapping bulk operations (Shopify allows only one at a time)
+        if (Storage::exists($progressPath)) {
+            $current = json_decode(Storage::get($progressPath), true) ?: [];
+            $active = $current['status'] ?? 'idle';
+            if (in_array($active, ['starting', 'querying', 'processing', 'downloading'])) {
+                return response()->json([
+                    'status' => 'already_running',
+                    'percent' => $current['percent'] ?? 0,
+                    'message' => 'Catalog refresh is already in progress. Please wait.',
+                ]);
+            }
+        }
 
         // Delete old cache so it's a clean rebuild
-        \Illuminate\Support\Facades\Storage::delete("quickb2b/{$shopDomain}/products.json");
-        \Illuminate\Support\Facades\Storage::delete("quickb2b/{$shopDomain}/progress.json");
+        Storage::delete("quickb2b/{$shopDomain}/products.json");
+        Storage::delete($progressPath);
 
-        \App\Jobs\RefreshProductCacheJob::dispatch($shopDomain);
+        RefreshProductCacheJob::dispatch($shopDomain);
 
         return response()->json(['status' => 'started', 'message' => 'Catalog refresh started']);
+    }
+
+    // ─── Private helpers ──────────────────────────────────────────
+
+    /**
+     * Filter products array by search query (case-insensitive, multi-field).
+     */
+    private function filterProductsBySearch(array $products, string $query): array
+    {
+        if ($query === '') {
+            return $products;
+        }
+
+        $qLower = mb_strtolower($query);
+        return array_values(array_filter($products, function ($p) use ($qLower) {
+            return str_contains(mb_strtolower($p['title'] ?? ''), $qLower)
+                || str_contains(mb_strtolower($p['sku'] ?? ''), $qLower)
+                || str_contains(mb_strtolower($p['variant_title'] ?? ''), $qLower)
+                || str_contains(mb_strtolower($p['tags'] ?? ''), $qLower);
+        }));
     }
 }

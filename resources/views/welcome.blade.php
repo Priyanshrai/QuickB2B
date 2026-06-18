@@ -7,7 +7,7 @@
     // Auto-sync from Shopify if DB empty (reinstall case)
     if (!$page) {
         try {
-            $shopifyPage = \App\Services\ShopifyGraphQL::fetchPageByHandle(Auth::user(), 'quick-order');
+            $shopifyPage = \App\Services\ShopifyGraphQL::fetchQuickOrderPage(Auth::user());
             if ($shopifyPage) {
                 $page = \App\Models\QuickOrderPage::create([
                     'user_id'        => Auth::id(),
@@ -16,7 +16,7 @@
                     'handle'         => $shopifyPage['handle'],
                     'is_published'   => $shopifyPage['isPublished'] ?? true,
                     'menu_linked'    => false,
-                    'page_url'       => Auth::user()->getDomain()->toNative() . '/pages/' . $shopifyPage['handle'],
+                    'page_url'       => 'https://' . Auth::user()->getDomain()->toNative() . '/pages/' . $shopifyPage['handle'],
                 ]);
             }
         } catch (\Throwable $e) {}
@@ -46,14 +46,21 @@
                             <s-stack direction="inline" gap="base" justifyContent="space-between" alignItems="center">
                                 <s-stack direction="inline" gap="small" alignItems="center">
                                     <s-badge tone="success" size="large">Live</s-badge>
-                                    <s-text fontWeight="bold">{{ $page->title }}</s-text>
+                                    <span id="qb-title-display" style="font-weight:700;font-size:16px;cursor:pointer;border-bottom:1px dashed #8d9298;padding:2px 4px;border-radius:3px;" onclick="startEditTitle()" title="Click to rename">
+                                        {{ $page->title }} <span style="font-size:12px;color:#8d9298;">✏️</span>
+                                    </span>
+                                    <span id="qb-title-edit" style="display:none;">
+                                        <input type="text" id="qb-title-input" value="{{ $page->title }}" style="padding:6px 10px;border:1px solid #c9cccf;border-radius:4px;font-size:14px;font-family:inherit;width:200px;">
+                                        <button onclick="saveInlineTitle()" style="margin-left:6px;padding:6px 14px;background:#008060;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;">Save</button>
+                                        <button onclick="cancelEditTitle()" style="padding:6px 14px;background:#e4e5e7;color:#4a4f55;border:none;border-radius:4px;cursor:pointer;font-size:12px;">Cancel</button>
+                                    </span>
                                 </s-stack>
                                 <s-text tone="subdued" variant="bodySm">Created {{ $page->created_at->diffForHumans() }}</s-text>
                             </s-stack>
 
                             <s-stack direction="inline" gap="base" style="flex-wrap:wrap;">
                                 <s-text variant="bodySm">
-                                    <a href="https://{{ $page->page_url }}" target="_blank" rel="noopener" style="color:var(--p-color-text-interactive);text-decoration:none;">🔗 {{ $page->page_url }}</a>
+                                    <a href="{{ $page->page_url }}" target="_blank" rel="noopener" style="color:var(--p-color-text-interactive);text-decoration:none;">🔗 {{ $page->page_url }}</a>
                                 </s-text>
                                 <s-badge tone="info">Published</s-badge>
                                 @if ($page->menu_linked)
@@ -69,7 +76,6 @@
                                     <input type="hidden" name="host" value="{{ $host }}">
                                     <s-button type="submit" variant="secondary">🔄 Refresh</s-button>
                                 </form>
-                                <s-button variant="secondary" onclick="shopify.modal.show('edit-title-modal')">✏️ Edit Title</s-button>
                                 @if (!$page->menu_linked)
                                     <form method="POST" action="{{ route('page.link-menu') }}" style="display:inline;">
                                         @csrf @sessionToken
@@ -148,36 +154,6 @@
     {{-- ═══════════════════════════════════════════════════════ --}}
     @if ($page)
 
-        {{-- Edit Title Modal --}}
-        <ui-modal id="edit-title-modal">
-            <div style="padding:20px 24px;display:flex;flex-direction:column;gap:16px;">
-                <s-text tone="subdued">Change the display name of your Quick Order page.</s-text>
-                <form id="edit-title-form" method="POST" action="{{ route('page.update-title') }}" onsubmit="return false;">
-                    @csrf
-                    @sessionToken
-                    <input type="hidden" name="host" value="{{ $host }}">
-                    <s-text-field label="Page Title" name="title" value="{{ $page->title }}" required></s-text-field>
-                </form>
-                <s-stack direction="inline" distribution="trailing" gap="base">
-                    <s-button variant="secondary" id="edit-title-cancel">Cancel</s-button>
-                    <s-button variant="primary" id="edit-title-save">Save Changes</s-button>
-                </s-stack>
-                <script>
-                    document.getElementById('edit-title-save').addEventListener('click', function() {
-                        this.setAttribute('loading', '');
-                        var f = document.getElementById('edit-title-form');
-                        var b = new URLSearchParams();
-                        f.querySelectorAll('input[type=hidden]').forEach(function(e) { if (e.name && e.value) b.append(e.name, e.value); });
-                        f.querySelectorAll('s-text-field').forEach(function(e) { if (e.getAttribute('name')) b.set(e.getAttribute('name'), e.value || ''); });
-                        fetch(f.getAttribute('action'), { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:b.toString(), redirect:'follow' })
-                            .then(function(r) { r.ok ? location.href = r.url : location.reload(); }).catch(function() { location.reload(); });
-                    });
-                    document.getElementById('edit-title-cancel').addEventListener('click', function() { shopify.modal.hide('edit-title-modal'); });
-                </script>
-            </div>
-            <ui-title-bar title="Edit Page Title"></ui-title-bar>
-        </ui-modal>
-
         {{-- Delete Confirmation Modal --}}
         <ui-modal id="delete-page-modal">
             <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px;">
@@ -220,9 +196,31 @@
 {{-- Shared JS --}}
 {{-- ═══════════════════════════════════════════════════════ --}}
 <script>
+    // ── Inline Edit Title ──────────────────────────────
+    function startEditTitle() {
+        document.getElementById('qb-title-display').style.display = 'none';
+        document.getElementById('qb-title-edit').style.display = 'inline';
+        document.getElementById('qb-title-input').focus();
+    }
+    function cancelEditTitle() {
+        document.getElementById('qb-title-edit').style.display = 'none';
+        document.getElementById('qb-title-display').style.display = 'inline';
+    }
+    function saveInlineTitle() {
+        var input = document.getElementById('qb-title-input');
+        var newTitle = input.value.trim();
+        if (!newTitle) return;
+        var form = document.getElementById('edit-title-form');
+        document.getElementById('edit-title-value').value = newTitle;
+        var data = new URLSearchParams(new FormData(form));
+        fetch(form.getAttribute('action'), { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:data.toString(), redirect:'follow' })
+            .then(function(r) { r.ok ? location.href = r.url : location.reload(); })
+            .catch(function() { location.reload(); });
+    }
+
     // Loading state on all form submits
     document.addEventListener('DOMContentLoaded', function () {
-        document.querySelectorAll('form:not(#delete-page-form)').forEach(function (f) {
+        document.querySelectorAll('form:not(#delete-page-form):not(#edit-title-form)').forEach(function (f) {
             f.addEventListener('submit', function () {
                 f.querySelectorAll('s-button[type="submit"]').forEach(function (b) {
                     b.setAttribute('loading', '');
@@ -231,6 +229,14 @@
         });
     });
 </script>
+
+{{-- Hidden form for inline title edit (outside modal, always in DOM) --}}
+<form id="edit-title-form" method="POST" action="{{ route('page.update-title') }}" style="display:none;">
+    @csrf
+    @sessionToken
+    <input type="hidden" name="host" value="{{ $host }}">
+    <input type="hidden" name="title" id="edit-title-value">
+</form>
 
 @endsection
 

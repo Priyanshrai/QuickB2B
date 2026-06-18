@@ -18,7 +18,7 @@ class PageController extends Controller
     {
         $shop = Auth::user();
         $existing = QuickOrderPage::where('user_id', Auth::id())->first();
-        $shopifyPage = ShopifyGraphQL::fetchPageByHandle($shop, 'quick-order');
+        $shopifyPage = ShopifyGraphQL::fetchQuickOrderPage($shop);
 
         if ($shopifyPage) {
             // Page exists on Shopify → upsert
@@ -28,7 +28,7 @@ class PageController extends Controller
                     'title'          => $shopifyPage['title'],
                     'handle'         => $shopifyPage['handle'],
                     'is_published'   => $shopifyPage['isPublished'] ?? true,
-                    'page_url'       => $shop->getDomain()->toNative() . '/pages/' . $shopifyPage['handle'],
+                    'page_url'       => 'https://' . $shop->getDomain()->toNative() . '/pages/' . $shopifyPage['handle'],
                 ]);
                 // Update body to include redirect if it's old
                 $body = $shopifyPage['body'] ?? '';
@@ -48,7 +48,7 @@ class PageController extends Controller
                 'handle'         => $shopifyPage['handle'],
                 'is_published'   => $shopifyPage['isPublished'] ?? true,
                 'menu_linked'    => false,
-                'page_url'       => $shop->getDomain()->toNative() . '/pages/' . $shopifyPage['handle'],
+                'page_url'       => 'https://' . $shop->getDomain()->toNative() . '/pages/' . $shopifyPage['handle'],
             ]);
             return back()->with('success', '🔄 Page found and synced!');
         }
