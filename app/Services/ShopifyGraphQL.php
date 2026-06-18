@@ -290,7 +290,6 @@ class ShopifyGraphQL
 
     /**
      * Find our page on Shopify by searching title + filtering by marker.
-     * Catches quick-order, quick-order-1, quick-order-2, etc.
      */
     public static function fetchQuickOrderPage($shop): ?array
     {
@@ -309,9 +308,8 @@ class ShopifyGraphQL
         foreach ($data['pages']['edges'] ?? [] as $edge) {
             $node = $edge['node'] ?? [];
             $body = $node['body'] ?? '';
-            $h    = $node['handle'] ?? '';
-            // Match by marker OR handle prefix
-            if (str_contains($body, 'quickb2b-page') || str_starts_with($h, 'quick-order')) {
+            // Match by marker only — the most reliable identifier
+            if (str_contains($body, 'quickb2b-page')) {
                 // Clean up any extra duplicate pages on Shopify (keep only this one)
                 static::cleanupDuplicatePages($shop, $data['pages']['edges'] ?? [], $node['id']);
                 return $node;
