@@ -1,6 +1,11 @@
 {{-- Quick Order JavaScript — wrapped in IIFE, only 4 globals exposed --}}
 
 <script>
+// ─── QuickB2B Settings (from server) ──────────────────────────
+window.qbSettings = @json($settings);
+</script>
+
+<script>
 (function() {
     var products = [];
     var cartItems = {};
@@ -10,6 +15,14 @@
     var currentFilter = 'all';
     var totalProducts = 0;
     var totalPages = 1;
+
+    // Shorthand
+    var S = window.qbSettings || {};
+    var showImage  = !!(S.image_size);
+    var hideSku    = !!S.hide_sku;
+    var hideStock  = !!S.hide_stock;
+    var minQty     = S.min_qty ? parseInt(S.min_qty) : 1;
+    var maxQty     = S.max_qty ? parseInt(S.max_qty) : null;
 
     // ─── HTML escape helper ──────────────────────────────────────
 
@@ -36,7 +49,8 @@
 
             if (data.source === 'waiting') {
                 var tbody = document.querySelector('#qb-table tbody');
-                tbody.innerHTML = '<tr><td colspan="5">Loading product catalog...</td></tr>';
+                var cols = 2; if (showImage) cols++; if (!hideSku) cols++; cols++; if (!hideStock) cols++;
+                tbody.innerHTML = '<tr><td colspan="' + cols + '">Loading product catalog...</td></tr>';
                 pollCatalogStatus(function() { loadProducts(query, page, perPage); });
                 return;
             }
@@ -52,8 +66,9 @@
             renderProducts();
             renderPagination();
         } catch (e) {
+            var cols = 2; if (showImage) cols++; if (!hideSku) cols++; cols++; if (!hideStock) cols++;
             document.querySelector('#qb-table tbody').innerHTML =
-                '<tr><td colspan="5">Could not load products. Please try again.</td></tr>';
+                '<tr><td colspan="' + cols + '">Could not load products. Please try again.</td></tr>';
         }
     }
 
@@ -143,7 +158,12 @@
         var tbody = document.querySelector('#qb-table tbody');
 
         if (!products.length) {
-            tbody.innerHTML = '<tr><td colspan="5">No products found.</td></tr>';
+            var cols = 2; // Product/Variant + Qty (always shown)
+            if (showImage) cols++;
+            if (!hideSku) cols++;
+            cols++; // Price (always)
+            if (!hideStock) cols++;
+            tbody.innerHTML = '<tr><td colspan="' + cols + '">No products found.</td></tr>';
             return;
         }
 
@@ -190,11 +210,20 @@
                 }
             }
 
+            var imgHtml = '';
+            if (showImage && p.image_url) {
+                imgHtml = '<td class="qb-col-img"><img src="' + escapeHtml(p.image_url) + '" width="' + S.image_size + '" height="' + S.image_size + '" style="object-fit:contain" loading="lazy" alt=""></td>';
+            } else if (showImage) {
+                imgHtml = '<td class="qb-col-img"></td>';
+            }
+
             // Product header row
             html += '<tr class="qb-product-row">' +
+                imgHtml +
                 '<td colspan="2"><strong>' + escapeHtml(p.title) + '</strong></td>' +
+                (hideSku ? '' : '<td class="qb-col-sku"></td>') +
                 '<td class="qb-col-price"></td>' +
-                '<td class="qb-col-stock">' + variants.length + ' var</td>' +
+                (hideStock ? '' : '<td class="qb-col-stock">' + variants.length + ' var</td>') +
                 '<td></td>' +
                 '</tr>';
 
@@ -206,14 +235,22 @@
                     : 'Default';
                 var oos = isOutOfStock(v);
                 var disabledAttr = oos ? ' disabled' : '';
+                var qtyMin = oos ? 0 : minQty;
+                var qtyMax = maxQty || '';
+
+                var imgCell = '';
+                if (showImage) { imgCell = '<td class="qb-col-img"></td>'; }
 
                 html += '<tr class="qb-variant-row">' +
+                    imgCell +
                     '<td><span class="qb-variant-label">' + escapeHtml(vLabel) + '</span>' +
                         (oos ? ' <em>OOS</em>' : '') + '</td>' +
-                    '<td class="qb-col-sku">' + escapeHtml(v.sku || '—') + '</td>' +
+                    (hideSku ? '' : '<td class="qb-col-sku">' + escapeHtml(v.sku || '—') + '</td>') +
                     '<td class="qb-col-price">$' + parseFloat(v.price).toFixed(2) + '</td>' +
-                    '<td class="qb-col-stock">' + getStockLabel(v.inventory, v.inventory_tracked) + '</td>' +
-                    '<td class="qb-col-qty"><input type="number" min="0" value="' + qty +
+                    (hideStock ? '' : '<td class="qb-col-stock">' + getStockLabel(v.inventory, v.inventory_tracked) + '</td>') +
+                    '<td class="qb-col-qty"><input type="number" min="' + qtyMin + '"' +
+                        (qtyMax ? ' max="' + qtyMax + '"' : '') +
+                        ' value="' + qty +
                         '" placeholder="0" data-id="' + escapeHtml(v.variant_id) +
                         '" onchange="updateCart(this)"' + disabledAttr + '></td>' +
                     '</tr>';
@@ -348,14 +385,50 @@
             });
             var data = await resp.json();
             items = (data.variants || []).map(function(v) {
-                return { id: 'gid://shopify/ProductVariant/' + v, qty: 1 };
+                return { id: 'gid://shopify/ProductVariant/' + v, qty: minQty || 1 };
             });
         }
 
         if (!items.length) { alert('No products to add.'); return; }
 
-        // ── OOS choice dialog (ALL methods) ──────────────────────
-        var filterOos = true; // default: in-stock only
+        // ── Min / Max Qty validation ────────────────────────────
+        var validationErrors = [];
+        for (var i = 0; i < items.length; i++) {
+            var q = parseInt(items[i].qty) || 0;
+            if (q === 0 && minQty > 0) {
+                validationErrors.push('Quantity must be at least ' + minQty + ' (some items have 0).');
+                break;
+            }
+            if (q > 0 && q < minQty) {
+                validationErrors.push('Minimum quantity is ' + minQty + '. Some items have only ' + q + '.');
+                break;
+            }
+            if (maxQty && q > maxQty) {
+                validationErrors.push('Maximum quantity is ' + maxQty + '. Some items exceed this limit.');
+                break;
+            }
+        }
+        if (validationErrors.length) {
+            alert('⚠️ ' + validationErrors[0]);
+            if (clickedBtn) { clickedBtn.disabled = false; }
+            return;
+        }
+
+        // ── Confirm "Add All" with min qty ──────────────────────
+        if (!useSelected && minQty > 1 && items.length > 0) {
+            var msg = 'Add ' + items.length + ' product(s) to cart?\n\n'
+                + 'Default quantity: ' + minQty + ' per item\n'
+                + 'Total items in cart: ' + (items.length * minQty) + '\n\n'
+                + 'Click OK to continue or Cancel to adjust quantities.';
+            if (!confirm(msg)) {
+                if (clickedBtn) { clickedBtn.disabled = false; }
+                return;
+            }
+        }
+
+        // ── OOS handling (respects settings) ────────────────────
+        var hideOosSetting = !!S.hide_oos;
+        var filterOos = hideOosSetting; // follow merchant preference
         var hasOos = items.some(function(item) {
             var p = products.find(function(prod) {
                 return (prod.variant_id || '').indexOf(item.id) !== -1;
@@ -363,9 +436,13 @@
             return p && isOutOfStock(p);
         });
 
-        if (hasOos) {
-            filterOos = confirm(
-                'Some items are out of stock.\n\nAdd only in-stock items?'
+        if (hasOos && !hideOosSetting) {
+            // Merchant allows OOS → ask user one time
+            filterOos = !confirm(
+                'Some items are out of stock.\n\n' +
+                'Include out-of-stock items in the order?\n\n' +
+                'OK = Include all (including OOS)\n' +
+                'Cancel = In-stock only'
             );
         }
 

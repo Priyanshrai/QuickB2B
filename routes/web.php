@@ -20,8 +20,12 @@ Route::middleware(['auth.proxy', 'throttle:120,1'])->group(function () {
         if (!$shop) {
             return response('Unauthorized', 401);
         }
+        $settings = \App\Models\QuickOrderSetting::forShop(Auth::id());
         return response(
-            view('quick-order.proxy', ['shopDomain' => $shop->getDomain()->toNative()])
+            view('quick-order.proxy', [
+                'shopDomain' => $shop->getDomain()->toNative(),
+                'settings'   => $settings,
+            ])
         )->header('Content-Type', 'application/liquid');
     })->name('proxy.quick-order');
 
@@ -98,6 +102,12 @@ Route::middleware(['verify.shopify'])->group(function () {
         ->name('page.unlink-menu');
     Route::post('/page/sync', [\App\Http\Controllers\PageController::class, 'syncPage'])
         ->name('page.sync');
+
+    // Settings
+    Route::get('/settings', [\App\Http\Controllers\SettingsController::class, 'index'])
+        ->name('settings.index');
+    Route::post('/settings', [\App\Http\Controllers\SettingsController::class, 'save'])
+        ->name('settings.save');
 });
 
 /*

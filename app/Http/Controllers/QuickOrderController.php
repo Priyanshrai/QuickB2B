@@ -34,6 +34,10 @@ class QuickOrderController extends Controller
         // Read all products from file
         $allProducts = json_decode(Storage::get($filePath), true) ?: [];
 
+        // Apply shop settings filters
+        $settings = \App\Models\QuickOrderSetting::forShop(Auth::id());
+        $allProducts = $this->applySettingsFilters($allProducts, $settings);
+
         // Server-side search with optional filter type
         $q = trim($request->query('q', ''));
         $filter = $request->query('filter', 'all');
@@ -78,6 +82,10 @@ class QuickOrderController extends Controller
         }
 
         $allProducts = json_decode(Storage::get($filePath), true) ?: [];
+
+        // Apply shop settings filters
+        $settings = \App\Models\QuickOrderSetting::forShop(Auth::id());
+        $allProducts = $this->applySettingsFilters($allProducts, $settings);
 
         // Optional search filter
         $q = trim($request->input('q', ''));
@@ -327,6 +335,40 @@ class QuickOrderController extends Controller
         RefreshProductCacheJob::dispatch($shopDomain);
 
         return response()->json(['status' => 'started', 'message' => 'Catalog refresh started']);
+    }
+
+    /**
+     * Apply shop settings to product list: OOS filter, tag hide, etc.
+     */
+    private function applySettingsFilters(array $products, array $settings): array
+    {
+        $hideOos  = $settings['hide_oos'] ?? true;
+        $hideTags = $settings['hide_tags'] ?? [];
+
+        return array_values(array_filter($products, function ($p) use ($hideOos, $hideTags) {
+            // OOS filter: skip tracked variants with 0 inventory
+            if ($hideOos) {
+                $tracked = !empty($p['inventory_tracked']);
+                $qty     = (int) ($p['inventory'] ?? 0);
+                if ($tracked && $qty <= 0) {
+                    return false;
+                }
+            }
+
+            // Tag filter: skip products with hidden tags
+            if (!empty($hideTags)) {
+                $productTags = is_string($p['tags'] ?? '')
+                    ? array_map('trim', explode(',', $p['tags']))
+                    : [];
+                foreach ($hideTags as $hiddenTag) {
+                    if (in_array($hiddenTag, $productTags, true)) {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }));
     }
 
     // ─── Private helpers ──────────────────────────────────────────

@@ -50,7 +50,16 @@ class RefreshProductCacheJob implements ShouldQueue
                                 price
                                 inventoryQuantity
                                 inventoryPolicy
-                                product { id title tags collections { edges { node { title } } } }
+                                image { id url altText }
+                                product {
+                                    id title tags
+                                    featuredMedia {
+                                        ... on MediaImage {
+                                            image { url }
+                                        }
+                                    }
+                                    collections { edges { node { title } } }
+                                }
                             }
                         }
                     }
@@ -119,6 +128,7 @@ class RefreshProductCacheJob implements ShouldQueue
             $products = [];
             $variantToProduct = [];
             $variantCollections = [];
+            $productImages = [];   // productId → imageUrl
 
             foreach (explode("\n", $jsonl) as $line) {
                 $line = trim($line);
@@ -134,6 +144,15 @@ class RefreshProductCacheJob implements ShouldQueue
                 // Collection line — __parentId points to the VARIANT
                 if ($parentId && $objTitle && !str_contains($objId, '/ProductVariant/')) {
                     $variantCollections[$parentId][] = $objTitle;
+                    continue;
+                }
+
+                // Featured media line — __parentId points to PRODUCT
+                if ($parentId && str_contains($parentId, '/Product/') && !str_contains($objId, '/ProductVariant/')) {
+                    $imgUrl = $obj['image']['url'] ?? '';
+                    if ($imgUrl) {
+                        $productImages[$parentId] = $imgUrl;
+                    }
                     continue;
                 }
 
@@ -166,6 +185,7 @@ class RefreshProductCacheJob implements ShouldQueue
                     'inventory_tracked' => ($obj['inventoryPolicy'] ?? '') === 'DENY',
                     'tags'              => $rawTags,
                     'collections'       => [],
+                    'image_url'         => '', // filled below
                 ];
             }
 
@@ -181,6 +201,10 @@ class RefreshProductCacheJob implements ShouldQueue
                 $pid = $p['id'];
                 if ($pid && isset($productCollections[$pid])) {
                     $p['collections'] = $productCollections[$pid];
+                }
+                // Attach featured image: product
+                if ($pid && isset($productImages[$pid])) {
+                    $p['image_url'] = $productImages[$pid];
                 }
             }
             unset($p);

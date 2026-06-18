@@ -1,4 +1,13 @@
 {{-- Quick Order — Custom CSS, 0 CDN --}}
+@php
+    $hideSku   = $settings['hide_sku'] ?? false;
+    $hideStock = $settings['hide_stock'] ?? false;
+    $imageSize = $settings['image_size'] ?? null;
+    $colspan   = 3; // Product/Variant, Price, Qty (always shown)
+    if (!$hideSku)   $colspan++;
+    if (!$hideStock) $colspan++;
+    if ($imageSize)  $colspan++;
+@endphp
 
 @include('quick-order.partials.styles')
 
@@ -43,15 +52,16 @@
     <table id="qb-table">
         <thead>
             <tr>
+                @if($imageSize)<th>Image</th>@endif
                 <th>Product / Variant</th>
-                <th class="qb-col-sku">SKU</th>
+                @if(!$hideSku)<th class="qb-col-sku">SKU</th>@endif
                 <th class="qb-col-price">Price</th>
-                <th class="qb-col-stock">Stock</th>
+                @if(!$hideStock)<th class="qb-col-stock">Stock</th>@endif
                 <th class="qb-col-qty">Qty</th>
             </tr>
         </thead>
         <tbody>
-            <tr><td colspan="5">Loading products...</td></tr>
+            <tr><td colspan="{{ $colspan }}">Loading products...</td></tr>
         </tbody>
     </table>
 
