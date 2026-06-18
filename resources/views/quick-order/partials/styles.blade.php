@@ -11,18 +11,19 @@
 
 /* Card + Table */
 .qb-card            { background:#fff; border-radius:6px; border:1px solid #e4e5e7; padding:16px 20px; margin-bottom:16px; overflow-x:auto }
-#qb-table           { border-collapse:collapse; font-size:13px; width:100% }
-#qb-table thead th  { border-bottom:1px solid #d5d8db }
+#qb-table           { border-collapse:collapse; font-size:13px; width:100%; table-layout:auto }
+#qb-table thead th  { border-bottom:1px solid #d5d8db; white-space:nowrap }
 #qb-table tbody tr:hover { background:#f9fafb }
-.qb-col-price       { text-align:right; width:85px }
-.qb-col-sku         { width:100px; word-break:break-all; font-size:12px }
-.qb-col-price       { text-align:right; width:85px }
-.qb-col-stock       { text-align:center; width:60px }
+.qb-col-price       { text-align:right; width:1%; white-space:nowrap }
+.qb-col-sku         { width:1%; white-space:nowrap; font-size:12px; color:#6d7175 }
+.qb-col-stock       { text-align:center; width:1%; white-space:nowrap }
+.qb-col-qty         { text-align:center; width:1%; white-space:nowrap; padding:4px 4px !important }
+.qb-col-img         { width:1%; padding:4px 4px !important }
+.qb-col-img img     { display:block; border-radius:4px }
 .qb-stock-pill      { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; line-height:1.2; white-space:nowrap }
 .qb-stock-ok        { background:#e8f5e9; color:#2e7d32 }
 .qb-stock-low       { background:#fff3e0; color:#e65100 }
 .qb-stock-oos       { background:#ffebee; color:#c62828 }
-.qb-col-qty         { text-align:center; width:80px; padding:4px 4px !important }
 .qb-col-qty input   { width:64px; padding:4px 2px; text-align:center; border:1px solid #c9cccf; border-radius:3px; font-size:13px; font-family:inherit; box-sizing:border-box }
 .qb-col-qty input:focus { outline:none; border-color:#008060 }
 
