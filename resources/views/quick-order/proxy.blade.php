@@ -12,8 +12,7 @@
 </div>
 
 <header class="qb-header">
-    <h1>Quick Order</h1>
-    <p>Bulk order your products in one click. Built for B2B wholesale.</p>
+    <p>Bulk order your products in one click.</p>
 </header>
 
 <main class="qb-main">
@@ -78,7 +77,7 @@
         <p><strong>Bulk to Cart</strong> — Uses AJAX cart API. May not work on all stores.</p>
         <p><strong>Add to Cart</strong> — Fast permalink. Limited to 200 items.</p>
     </div>
-    <small>Powered by QuickB2B — Built for wholesale &amp; B2B ordering</small>
+    <small>Powered by QuickB2B — Built for Everyone With Love</small>
 </footer>
 
 </div>{{-- .qb-app --}}

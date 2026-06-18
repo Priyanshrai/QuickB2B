@@ -43,7 +43,6 @@
 
 /* Layout */
 .qb-header          { text-align:center; margin-bottom:24px }
-.qb-header h1       { font-size:22px; color:#008060; margin:0 0 4px }
 .qb-header p        { color:#6d7175; margin:0 }
 .qb-main            { max-width:960px; margin:0 auto; padding:0 20px }
 .qb-bar             { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin-bottom:8px; align-items:center }
