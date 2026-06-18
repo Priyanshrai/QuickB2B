@@ -333,9 +333,13 @@
             // For draft orders, always fetch ALL products (ignore search)
             // For permalink/ajax, respect search filter
             var searchQ = (method === 'draft') ? '' : q;
+            var f = document.getElementById('qb-filter');
+            var filterVal = f ? f.value : 'all';
+            var addBody = { q: searchQ };
+            if (filterVal !== 'all') addBody.filter = filterVal;
             var resp = await fetch('/apps/quick-order/api/add-all', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ q: searchQ }),
+                body: JSON.stringify(addBody),
             });
             var data = await resp.json();
             items = (data.variants || []).map(function(v) {
@@ -499,12 +503,18 @@
 
     window.selectAllVisible = async function() {
         var q = document.getElementById('qb-search').value;
-        var useFull = confirm('Select ALL matching products (across all pages)?\n\nOK = ALL (' + totalProducts + ' total)\nCancel = Only this page');
+        var f = document.getElementById('qb-filter');
+        var filter = f ? f.value : 'all';
+        var isFiltered = filter !== 'all';
+
+        var useFull = isFiltered || confirm('Select ALL matching products (across all pages)?\n\nOK = ALL (' + totalProducts + ' total)\nCancel = Only this page');
 
         if (useFull) {
+            var body = { q: q };
+            if (isFiltered) body.filter = filter;
             var resp = await fetch('/apps/quick-order/api/add-all', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ q: q }),
+                body: JSON.stringify(body),
             });
             var data = await resp.json();
             (data.variants || []).forEach(function(vid) {
@@ -512,7 +522,9 @@
             });
             updateCartCount();
             renderProducts(q);
-            alert((data.count || 0) + ' product(s) selected across all pages.');
+            var msg = (data.count || 0) + ' product(s) selected';
+            if (isFiltered) msg += ' (filter: ' + filter + ')';
+            alert(msg);
         } else {
             var inputs = document.querySelectorAll('#qb-table tbody input[type=\"number\"]');
             var count = 0;
