@@ -7,6 +7,7 @@
     var currentPage = 1;
     var currentPerPage = 50;
     var currentQuery = '';
+    var currentFilter = 'all';
     var totalProducts = 0;
     var totalPages = 1;
 
@@ -27,6 +28,7 @@
 
         var url = '/apps/quick-order/api/products?page=' + page + '&per_page=' + perPage;
         if (query) url += '&q=' + encodeURIComponent(query);
+        if (currentFilter && currentFilter !== 'all') url += '&filter=' + currentFilter;
 
         try {
             var resp = await fetch(url);
@@ -45,6 +47,7 @@
             currentPage = page;
             currentPerPage = perPage;
             currentQuery = query;
+            currentFilter = currentFilter || 'all';
 
             renderProducts();
             renderPagination();
@@ -60,6 +63,8 @@
     window.filterProducts = function() {
         clearTimeout(searchTimer);
         var q = document.getElementById('qb-search').value;
+        var f = document.getElementById('qb-filter');
+        currentFilter = f ? f.value : 'all';
         searchTimer = setTimeout(function() {
             currentQuery = q;
             loadProducts(q, 1, currentPerPage);

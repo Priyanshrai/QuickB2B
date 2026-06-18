@@ -46,7 +46,9 @@
 .qb-main            { max-width:960px; margin:0 auto; padding:0 20px }
 .qb-bar             { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin-bottom:8px; align-items:center }
 .qb-sep             { width:1px; height:18px; background:#d5d8db; margin:0 4px }
-.qb-search          { width:100%; padding:9px 12px; border:1px solid #c9cccf; border-radius:5px; font-size:14px; margin-bottom:12px; font-family:inherit; box-sizing:border-box }
+.qb-search-row      { display:flex; gap:8px; margin-bottom:12px }
+.qb-filter          { padding:9px 8px; border:1px solid #c9cccf; border-radius:5px; font-size:13px; font-family:inherit; background:#fff; min-width:100px; flex-shrink:0 }
+.qb-search          { width:100%; padding:9px 12px; border:1px solid #c9cccf; border-radius:5px; font-size:14px; font-family:inherit; box-sizing:border-box }
 
 /* Footer */
 .qb-footer          { text-align:center; padding:20px 0; color:#8d9298; font-size:12px }
@@ -73,6 +75,7 @@
   .qb-main          { padding:0 12px }
   .qb-app button    { padding:5px 10px; font-size:11px }
   .qb-search        { padding:7px 10px; font-size:13px }
+  .qb-filter        { padding:7px 6px; font-size:12px; min-width:80px }
   .qb-help          { margin:0 0 16px; padding:10px 12px; font-size:11px }
   #qb-pagination    { justify-content:center; gap:6px; font-size:11px }
   .qb-pg-actions    { gap:4px }

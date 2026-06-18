@@ -29,7 +29,16 @@
 
     <small id="qb-csv-status" hidden></small>
 
-    <input type="search" id="qb-search" class="qb-search" placeholder="Search by name, SKU or tags..." oninput="filterProducts()">
+    <div class="qb-search-row">
+        <select id="qb-filter" class="qb-filter" onchange="filterProducts()">
+            <option value="all">🔍 All</option>
+            <option value="title">📦 Product Name</option>
+            <option value="sku">🔢 SKU</option>
+            <option value="tag">🏷️ Tag</option>
+            <option value="collection">📁 Collection</option>
+        </select>
+        <input type="search" id="qb-search" class="qb-search" placeholder="Type to search..." oninput="filterProducts()">
+    </div>
 
     <div class="qb-card">
     <table id="qb-table">

@@ -34,9 +34,10 @@ class QuickOrderController extends Controller
         // Read all products from file
         $allProducts = json_decode(Storage::get($filePath), true) ?: [];
 
-        // Server-side search
+        // Server-side search with optional filter type
         $q = trim($request->query('q', ''));
-        $allProducts = $this->filterProductsBySearch($allProducts, $q);
+        $filter = $request->query('filter', 'all');
+        $allProducts = $this->filterProductsBySearch($allProducts, $q, $filter);
 
         $total = count($allProducts);
 
@@ -80,7 +81,8 @@ class QuickOrderController extends Controller
 
         // Optional search filter
         $q = trim($request->input('q', ''));
-        $allProducts = $this->filterProductsBySearch($allProducts, $q);
+        $filter = $request->input('filter', 'all');
+        $allProducts = $this->filterProductsBySearch($allProducts, $q, $filter);
 
         // Return variant IDs for client-side AJAX cart batching
         $variantIds = [];
@@ -330,24 +332,32 @@ class QuickOrderController extends Controller
     // ─── Private helpers ──────────────────────────────────────────
 
     /**
-     * Filter products array by search query (case-insensitive, multi-field).
+     * Filter products array by search query and optional field type.
+     * $filter: 'all' | 'title' | 'sku' | 'tag' | 'collection'
      */
-    private function filterProductsBySearch(array $products, string $query): array
+    private function filterProductsBySearch(array $products, string $query, string $filter = 'all'): array
     {
         if ($query === '') {
             return $products;
         }
 
         $qLower = mb_strtolower($query);
-        return array_values(array_filter($products, function ($p) use ($qLower) {
+        return array_values(array_filter($products, function ($p) use ($qLower, $filter) {
             $collectionsStr = is_array($p['collections'] ?? null)
                 ? mb_strtolower(implode(' ', $p['collections']))
                 : '';
-            return str_contains(mb_strtolower($p['title'] ?? ''), $qLower)
-                || str_contains(mb_strtolower($p['sku'] ?? ''), $qLower)
-                || str_contains(mb_strtolower($p['variant_title'] ?? ''), $qLower)
-                || str_contains(mb_strtolower($p['tags'] ?? ''), $qLower)
-                || str_contains($collectionsStr, $qLower);
+
+            return match ($filter) {
+                'title'      => str_contains(mb_strtolower($p['title'] ?? ''), $qLower),
+                'sku'        => str_contains(mb_strtolower($p['sku'] ?? ''), $qLower) || str_contains(mb_strtolower($p['variant_title'] ?? ''), $qLower),
+                'tag'        => str_contains(mb_strtolower($p['tags'] ?? ''), $qLower),
+                'collection' => str_contains($collectionsStr, $qLower),
+                default      => str_contains(mb_strtolower($p['title'] ?? ''), $qLower)
+                             || str_contains(mb_strtolower($p['sku'] ?? ''), $qLower)
+                             || str_contains(mb_strtolower($p['variant_title'] ?? ''), $qLower)
+                             || str_contains(mb_strtolower($p['tags'] ?? ''), $qLower)
+                             || str_contains($collectionsStr, $qLower),
+            };
         }));
     }
 }
