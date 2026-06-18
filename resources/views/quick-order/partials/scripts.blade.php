@@ -34,7 +34,7 @@
 
             if (data.source === 'waiting') {
                 var tbody = document.querySelector('#qb-table tbody');
-                tbody.innerHTML = '<tr><td colspan="6">Loading product catalog...</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5">Loading product catalog...</td></tr>';
                 pollCatalogStatus(function() { loadProducts(query, page, perPage); });
                 return;
             }
@@ -50,7 +50,7 @@
             renderPagination();
         } catch (e) {
             document.querySelector('#qb-table tbody').innerHTML =
-                '<tr><td colspan="6">Could not load products. Please try again.</td></tr>';
+                '<tr><td colspan="5">Could not load products. Please try again.</td></tr>';
         }
     }
 
@@ -127,61 +127,104 @@
         }, 3000);
     }
 
-    // ─── Render product table rows ────────────────────────────────
+    // ─── Render product table rows (grouped by product) ──────────
 
     function renderProducts() {
         var tbody = document.querySelector('#qb-table tbody');
 
         if (!products.length) {
-            tbody.innerHTML = '<tr><td colspan="6">No products found.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5">No products found.</td></tr>';
             return;
         }
 
-        tbody.innerHTML = products.map(function(p) { return buildRow(p); }).join('');
+        // Group variants by parent product id
+        var groups = {};
+        var groupOrder = [];
+        products.forEach(function(p) {
+            var pid = p.id || 'unknown';
+            if (!groups[pid]) {
+                groups[pid] = { product: p, variants: [] };
+                groupOrder.push(pid);
+            }
+            groups[pid].variants.push(p);
+        });
 
+        var html = '';
+        groupOrder.forEach(function(pid) {
+            var g = groups[pid];
+            var p = g.product;
+            var variants = g.variants;
+
+            var tagsHtml = '';
+            if (p.tags && p.tags !== '{}' && p.tags !== '[]') {
+                var tagList = Array.isArray(p.tags) ? p.tags : String(p.tags).split(',');
+                tagList = tagList.filter(function(t) { return t && String(t).trim(); }).map(function(t) {
+                    var tag = String(t).trim();
+                    return tag.length > 15 ? tag.substring(0, 15) + '…' : tag;
+                });
+                if (tagList.length > 2) {
+                    tagsHtml = tagList.slice(0, 2).join(', ') + ', …';
+                } else {
+                    tagsHtml = tagList.join(', ');
+                }
+            }
+            var collectionsHtml = '';
+            if (p.collections && Array.isArray(p.collections) && p.collections.length) {
+                var colList = p.collections.filter(function(c) { return c; }).map(function(c) {
+                    return c.length > 15 ? c.substring(0, 15) + '…' : c;
+                });
+                if (colList.length > 2) {
+                    collectionsHtml = colList.slice(0, 2).join(', ') + ', …';
+                } else {
+                    collectionsHtml = colList.join(', ');
+                }
+            }
+
+            // Product header row
+            html += '<tr class="qb-product-row">' +
+                '<td colspan="2"><strong>' + escapeHtml(p.title) + '</strong></td>' +
+                '<td class="qb-col-price"></td>' +
+                '<td class="qb-col-stock">' + variants.length + ' var</td>' +
+                '<td></td>' +
+                '</tr>';
+
+            // Variant rows
+            variants.forEach(function(v) {
+                var qty = cartItems[v.variant_id] || '';
+                var vLabel = (v.variant_title && v.variant_title !== 'Default Title')
+                    ? v.variant_title
+                    : 'Default';
+                var oos = isOutOfStock(v);
+                var disabledAttr = oos ? ' disabled' : '';
+
+                html += '<tr class="qb-variant-row">' +
+                    '<td><span class="qb-variant-label">' + escapeHtml(vLabel) + '</span>' +
+                        (oos ? ' <em>OOS</em>' : '') + '</td>' +
+                    '<td>' + escapeHtml(v.sku || '—') + '</td>' +
+                    '<td class="qb-col-price">$' + parseFloat(v.price).toFixed(2) + '</td>' +
+                    '<td class="qb-col-stock">' + getStockLabel(v.inventory, v.inventory_tracked) + '</td>' +
+                    '<td class="qb-col-qty"><input type="number" min="0" value="' + qty +
+                        '" placeholder="0" data-id="' + escapeHtml(v.variant_id) +
+                        '" onchange="updateCart(this)"' + disabledAttr + '></td>' +
+                    '</tr>';
+            });
+        });
+
+        tbody.innerHTML = html;
         updateCartCount();
-    }
-
-    function buildRow(p) {
-        var qty = cartItems[p.variant_id] || '';
-        var productLabel = p.title;
-        if (p.variant_title && p.variant_title !== 'Default Title') {
-            productLabel += ' — ' + p.variant_title;
-        }
-        var oos = isOutOfStock(p);
-        var disabledAttr = oos ? ' disabled' : '';
-
-        var tagsHtml = '';
-        if (p.tags && p.tags !== '{}' && p.tags !== '[]') {
-            var tagList = Array.isArray(p.tags) ? p.tags : String(p.tags).split(',');
-            tagsHtml = tagList.filter(function(t) { return t && String(t).trim(); }).map(function(t) {
-                return String(t).trim();
-            }).join(', ');
-        }
-
-        return '<tr>' +
-            '<td><strong>' + escapeHtml(productLabel) + '</strong>' + (oos ? ' <em>OOS</em>' : '') + '</td>' +
-            '<td>' + escapeHtml(p.sku || '—') + '</td>' +
-            '<td>' + escapeHtml(tagsHtml || '—') + '</td>' +
-            '<td class="qb-col-price">$' + parseFloat(p.price).toFixed(2) + '</td>' +
-            '<td class="qb-col-stock">' + getStockLabel(p.inventory, p.inventory_tracked) + '</td>' +
-            '<td class="qb-col-qty"><input type="number" min="0" value="' + qty +
-                '" placeholder="0" data-id="' + escapeHtml(p.variant_id) +
-                '" onchange="updateCart(this)"' + disabledAttr + '></td>' +
-            '</tr>';
     }
 
     function getStockLabel(inventory, tracked) {
         if (!tracked) {
-            return 'Unlimited';
+            return '<span class="qb-stock-pill qb-stock-ok">∞</span>';
         }
         if (inventory > 10) {
-            return inventory + ' in stock';
+            return '<span class="qb-stock-pill qb-stock-ok">' + inventory + '</span>';
         }
         if (inventory > 0) {
-            return 'Only ' + inventory + ' left';
+            return '<span class="qb-stock-pill qb-stock-low">' + inventory + '</span>';
         }
-        return 'Out of stock';
+        return '<span class="qb-stock-pill qb-stock-oos">0</span>';
     }
 
     function isOutOfStock(p) {
@@ -205,6 +248,9 @@
     window.clearTableQty = function() {
         if (!confirm('Clear all entered quantities?')) return;
         cartItems = {};
+        // Also hide CSV status
+        var csvStatus = document.getElementById('qb-csv-status');
+        if (csvStatus) { csvStatus.setAttribute('hidden', ''); }
         renderProducts();
     };
 
@@ -220,6 +266,8 @@
 
         // Clear local & reload so cart UI updates
         cartItems = {};
+        var csvStatus = document.getElementById('qb-csv-status');
+        if (csvStatus) { csvStatus.setAttribute('hidden', ''); }
         setTimeout(function() { location.reload(); }, 500);
     };
 
@@ -421,7 +469,7 @@
 
         // Hide table, show progress
         document.querySelector('#qb-table tbody').innerHTML =
-            '<tr><td colspan="6">Starting catalog refresh...</td></tr>';
+            '<tr><td colspan="5">Starting catalog refresh...</td></tr>';
 
         var resp = await fetch('/apps/quick-order/api/products/refresh', { method: 'POST' });
         var data = await resp.json();
@@ -444,19 +492,33 @@
 
     // ─── Select all / Deselect all visible ──────────────────────
 
-    window.selectAllVisible = function() {
-        var inputs = document.querySelectorAll('#qb-table tbody input[type="number"]');
-        var count = 0;
-        inputs.forEach(function(input) {
-            if (!input.disabled) {
-                input.value = 1;
-                cartItems[input.dataset.id] = 1;
-                count++;
-            }
-        });
-        updateCartCount();
-        if (count) alert(count + ' products selected.');
-        else alert('All products on this page are out of stock.');
+    window.selectAllVisible = async function() {
+        var q = document.getElementById('qb-search').value;
+        var useFull = confirm('Select ALL matching products (across all pages)?\n\nOK = ALL (' + totalProducts + ' total)\nCancel = Only this page');
+
+        if (useFull) {
+            var resp = await fetch('/apps/quick-order/api/add-all', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ q: q }),
+            });
+            var data = await resp.json();
+            (data.variants || []).forEach(function(vid) {
+                cartItems['gid://shopify/ProductVariant/' + vid] = 1;
+            });
+            updateCartCount();
+            renderProducts(q);
+            alert((data.count || 0) + ' product(s) selected across all pages.');
+        } else {
+            var inputs = document.querySelectorAll('#qb-table tbody input[type=\"number\"]');
+            var count = 0;
+            inputs.forEach(function(input) {
+                if (!input.disabled) { input.value = 1; cartItems[input.dataset.id] = 1; count++; }
+            });
+            updateCartCount();
+            renderProducts(q);
+            if (count) alert(count + ' product(s) selected on this page.');
+            else alert('No products on this page.');
+        }
     };
 
     // ─── CSV upload ───────────────────────────────────────────────
@@ -468,32 +530,71 @@
         var reader = new FileReader();
         reader.onload = function(e) {
             var lines = e.target.result.split('\n').filter(function(l) { return l.trim(); });
-            var count = 0;
+            var cartBefore = Object.keys(cartItems).length;  // variants already selected before CSV
 
             lines.forEach(function(line) {
+                // Skip comments and empty lines
+                var trimmed = line.trim();
+                if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('//')) return;
+
                 var cols = line.split(/[,\t]/);
                 var sku = (cols[0] || '').trim();
                 var name = (cols[1] || '').trim();
                 var qty = parseInt(cols[2]) || 1;
+                var tag = (cols[3] || '').trim();
 
                 // Skip header row
                 if (sku === 'SKU' || sku === 'SKU_or_Product_Name') return;
 
-                // Match by SKU first, then by product name
-                var product = products.find(function(p) {
-                    return (sku && p.sku === sku) ||
-                           (sku && p.title.toLowerCase() === sku.toLowerCase()) ||
-                           (name && p.title.toLowerCase() === name.toLowerCase());
-                });
-                if (product) {
-                    cartItems[product.variant_id] = qty;
-                    count++;
+                // ── Tag match: select ALL products with this tag ──
+                if (tag) {
+                    var tagLower = tag.toLowerCase();
+                    products.forEach(function(p) {
+                        if (p.tags && String(p.tags).toLowerCase().indexOf(tagLower) !== -1) {
+                            cartItems[p.variant_id] = qty;
+                        }
+                    });
+                    return;
                 }
+
+                var searchTerm = sku || name;
+                if (!searchTerm) return;
+
+                // 1. Exact SKU match → select that specific variant
+                var bySku = products.find(function(p) {
+                    return p.sku && p.sku === searchTerm;
+                });
+                if (bySku) {
+                    cartItems[bySku.variant_id] = qty;
+                    return;  // next CSV line
+                }
+
+                // 2. Product Name / Product ID / Variant ID match
+                var searchLower = searchTerm.toLowerCase();
+                var isGid = sku && sku.startsWith('gid://');
+                var numId = isGid ? sku.split('/').pop() : (/^\d+$/.test(sku) ? sku : null);
+
+                products.forEach(function(p) {
+                    var matchesName = p.title && p.title.toLowerCase() === searchLower;
+                    var matchesId = (isGid && (p.id === sku || p.variant_id === sku))
+                                 || (numId && (p.id.endsWith('/' + numId) || p.variant_id.endsWith('/' + numId)));
+                    var matchesName2 = name && p.title && p.title.toLowerCase() === name.toLowerCase();
+
+                    if (matchesName || matchesId || matchesName2) {
+                        cartItems[p.variant_id] = qty;
+                    }
+                });
             });
+
+            // Calculate accurate counts from cartItems (no double-counting)
+            var variantIds = Object.keys(cartItems);
+            var count = variantIds.length;
+            var totalItems = 0;
+            variantIds.forEach(function(vid) { totalItems += cartItems[vid]; });
 
             var status = document.getElementById('qb-csv-status');
             status.removeAttribute('hidden');
-            status.textContent = count + ' products matched from CSV';
+            status.textContent = count + ' variant(s) selected | ' + totalItems + ' total items (qty included)';
 
             renderProducts(document.getElementById('qb-search').value);
         };

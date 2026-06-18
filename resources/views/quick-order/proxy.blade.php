@@ -35,16 +35,15 @@
     <table id="qb-table">
         <thead>
             <tr>
-                <th>Product</th>
-                <th>SKU</th>
-                <th>Tags</th>
+                <th>Product / Variant</th>
+                <th style="width:80px">SKU</th>
                 <th class="qb-col-price">Price</th>
                 <th class="qb-col-stock">Stock</th>
                 <th class="qb-col-qty">Qty</th>
             </tr>
         </thead>
         <tbody>
-            <tr><td colspan="6">Loading products...</td></tr>
+            <tr><td colspan="5">Loading products...</td></tr>
         </tbody>
     </table>
 
@@ -63,8 +62,10 @@
 
 <footer class="qb-footer">
     <div class="qb-help">
-        <p><strong>Tip:</strong> If no quantities entered, all products in catalog are included (qty=1).</p>
-        <p><strong>Draft Order</strong> — Works always. Creates draft order + emails invoice link.</p>
+        <p><strong>📄 CSV Columns:</strong> Col1 (SKU/Name/ID), Col2 (Name), Col3 (Qty), Col4 (Tag)</p>
+        <p>🔹 <strong>SKU</strong> = 1 variant &nbsp;|&nbsp; 🔹 <strong>Name</strong> = ALL variants &nbsp;|&nbsp; 🔹 <strong>Product/Variant GID</strong> = specific/ALL</p>
+        <p>🔹 <strong>Tag</strong> = all products with that tag &nbsp;|&nbsp; Col 2+3+4 are optional, Qty defaults to 1</p>
+        <p style="margin-top:8px"><strong>Draft Order</strong> — Works always. Creates draft order + emails invoice link.</p>
         <p><strong>Bulk to Cart</strong> — Uses AJAX cart API. May not work on all stores.</p>
         <p><strong>Add to Cart</strong> — Fast permalink. Limited to 200 items.</p>
     </div>

@@ -340,10 +340,14 @@ class QuickOrderController extends Controller
 
         $qLower = mb_strtolower($query);
         return array_values(array_filter($products, function ($p) use ($qLower) {
+            $collectionsStr = is_array($p['collections'] ?? null)
+                ? mb_strtolower(implode(' ', $p['collections']))
+                : '';
             return str_contains(mb_strtolower($p['title'] ?? ''), $qLower)
                 || str_contains(mb_strtolower($p['sku'] ?? ''), $qLower)
                 || str_contains(mb_strtolower($p['variant_title'] ?? ''), $qLower)
-                || str_contains(mb_strtolower($p['tags'] ?? ''), $qLower);
+                || str_contains(mb_strtolower($p['tags'] ?? ''), $qLower)
+                || str_contains($collectionsStr, $qLower);
         }));
     }
 }

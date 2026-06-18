@@ -1,20 +1,11 @@
-SKU,Product_Name,Quantity
-sku-managed-1,,50
-sku-untracked-1,,25
-sku-hosted-1,,10
-,The Hidden Snowboard,5
-,Gift Card,20
-,The Complete Snowboard,3
-,The Draft Snowboard,2
-,Selling Plans Ski Wax,15
-,The Compare at Price Snowboard,8
-,The Archived Snowboard,12
-,,,
-,,,
-,,QuickB2B CSV Format Guide,,
-,,Column 1: SKU (if product has one),,
-,,Column 2: Product Name (if no SKU),,
-,,Column 3: Quantity,,
-,,,
-,,Use SKU column OR Product Name column (not both),,
-,,Delete guide rows before uploading,,
+SKU or Name or ID,Product Name,Qty,Tag
+SKI-WAX-001,,10,
+,The Hidden Snowboard,3,
+9473829732672,,2,
+,,5,Snowboard
+BINDING-PRO-XL,,12,
+,The Collection Snowboard: Hydrogen,4,
+,,6,Winter
+9473829601600,,1,
+SKU-BOOT-42,,8,
+,The Multi-location Snowboard,2,,

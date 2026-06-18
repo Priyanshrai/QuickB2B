@@ -50,7 +50,7 @@ class RefreshProductCacheJob implements ShouldQueue
                                 price
                                 inventoryQuantity
                                 inventoryPolicy
-                                product { id title tags }
+                                product { id title tags collections { edges { node { title } } } }
                             }
                         }
                     }
@@ -117,6 +117,7 @@ class RefreshProductCacheJob implements ShouldQueue
             }
 
             $products = [];
+            $productCollections = [];  // product GID → [collection titles]
 
             foreach (explode("\n", $jsonl) as $line) {
                 $line = trim($line);
@@ -125,26 +126,50 @@ class RefreshProductCacheJob implements ShouldQueue
                 $obj = json_decode($line, true);
                 if (!$obj) continue;
 
-                // Each line is a variant with nested product
-                $product = $obj['product'] ?? [];
+                // Collection line (flattened connection — has __parentId pointing to product)
+                if (isset($obj['__parentId']) && !empty($obj['title']) && str_contains($obj['__parentId'], '/Product/')) {
+                    $productCollections[$obj['__parentId']][] = $obj['title'];
+                    continue;
+                }
 
-                // Normalize tags: bulk API may return array or string
+                // Variant line (main node from productVariants connection)
+                // product is a nested FIELD (not connection), so it stays inline
+                $variantId = $obj['id'] ?? '';
+                if (!$variantId || !str_contains($variantId, '/ProductVariant/')) {
+                    continue; // skip non-variant lines (e.g., standalone products)
+                }
+
+                $product = $obj['product'] ?? [];
+                $productId = $product['id'] ?? '';
+
+                // Normalize tags
                 $rawTags = $product['tags'] ?? '';
                 if (is_array($rawTags)) {
                     $rawTags = implode(', ', $rawTags);
                 }
+
                 $products[] = [
-                    'id'            => $product['id'] ?? '',
+                    'id'            => $productId,
                     'title'         => $product['title'] ?? '',
-                    'variant_id'    => $obj['id'] ?? '',
+                    'variant_id'    => $variantId,
                     'variant_title' => $obj['title'] ?? '',
                     'sku'           => $obj['sku'] ?? '',
                     'price'         => $obj['price'] ?? '0.00',
                     'inventory'         => $obj['inventoryQuantity'] ?? 0,
                     'inventory_tracked' => ($obj['inventoryPolicy'] ?? '') === 'DENY',
                     'tags'              => $rawTags,
+                    'collections'       => [],  // filled below
                 ];
             }
+
+            // Attach collections to their products
+            foreach ($products as &$p) {
+                $pid = $p['id'];
+                if ($pid && isset($productCollections[$pid])) {
+                    $p['collections'] = $productCollections[$pid];
+                }
+            }
+            unset($p);
 
             // Step 4: Save to file
             Storage::put("{$dir}/products.json", json_encode($products));
