@@ -437,6 +437,23 @@ class ShopifyGraphQL
         return $data['draftOrderInvoiceSend']['draftOrder']['invoiceUrl'] ?? null;
     }
 
+    // ─── Shop Info ────────────────────────────────────────────────
+
+    /**
+     * Get the shop's primary currency code (e.g., USD, EUR, INR).
+     */
+    public static function shopCurrency($shop): ?string
+    {
+        $query = <<<'GQL'
+            query {
+                shop { currencyCode }
+            }
+        GQL;
+
+        $data = static::query($shop, $query);
+        return $data['shop']['currencyCode'] ?? null;
+    }
+
     // ─── Internal Helpers ──────────────────────────────────────────
 
     /**

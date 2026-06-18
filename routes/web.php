@@ -21,10 +21,27 @@ Route::middleware(['auth.proxy', 'throttle:120,1'])->group(function () {
             return response('Unauthorized', 401);
         }
         $settings = \App\Models\QuickOrderSetting::forShop(Auth::id());
+
+        // Get shop currency (cached in settings, fetched once on first load)
+        $currency = $settings['_currency'] ?? null;
+        if (!$currency) {
+            $currency = \App\Services\ShopifyGraphQL::shopCurrency($shop);
+            if ($currency) {
+                // Persist in settings so we don't fetch every time
+                $row = \App\Models\QuickOrderSetting::where('user_id', Auth::id())->first();
+                if ($row) {
+                    $s = $row->settings ?? [];
+                    $s['_currency'] = $currency;
+                    $row->update(['settings' => $s]);
+                }
+            }
+        }
+
         return response(
             view('quick-order.proxy', [
                 'shopDomain' => $shop->getDomain()->toNative(),
                 'settings'   => $settings,
+                'currency'   => $currency ?: 'USD',
             ])
         )->header('Content-Type', 'application/liquid');
     })->name('proxy.quick-order');

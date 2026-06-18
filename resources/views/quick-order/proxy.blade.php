@@ -7,6 +7,7 @@
     if (!$hideSku)   $colspan++;
     if (!$hideStock) $colspan++;
     if ($imageSize)  $colspan++;
+    $currency  = $currency ?? 'USD';
 @endphp
 
 @include('quick-order.partials.styles')
@@ -55,7 +56,7 @@
                 @if($imageSize)<th>Image</th>@endif
                 <th>Product / Variant</th>
                 @if(!$hideSku)<th class="qb-col-sku">SKU</th>@endif
-                <th class="qb-col-price">Price</th>
+                <th class="qb-col-price">Price ({{ $currency }})</th>
                 @if(!$hideStock)<th class="qb-col-stock">Stock</th>@endif
                 <th class="qb-col-qty">Qty</th>
             </tr>

@@ -3,6 +3,7 @@
 <script>
 // ─── QuickB2B Settings (from server) ──────────────────────────
 window.qbSettings = @json($settings);
+window.qbCurrency = @json($currency ?? 'USD');
 </script>
 
 <script>
@@ -23,6 +24,11 @@ window.qbSettings = @json($settings);
     var hideStock  = !!S.hide_stock;
     var minQty     = S.min_qty ? parseInt(S.min_qty) : 1;
     var maxQty     = S.max_qty ? parseInt(S.max_qty) : null;
+
+    // Currency symbol map
+    var currencySymbols = { USD:'$', EUR:'€', GBP:'£', INR:'₹', CAD:'C$', AUD:'A$', JPY:'¥', SEK:'kr', NOK:'kr', DKK:'kr', NZD:'NZ$', SGD:'S$', HKD:'HK$', CHF:'CHF', AED:'د.إ', BRL:'R$', MXN:'MX$', PLN:'zł', CZK:'Kč', RON:'lei', TRY:'₺', RUB:'₽', ZAR:'R', KRW:'₩', IDR:'Rp', MYR:'RM', PHP:'₱', THB:'฿', VND:'₫', CLP:'CLP$', COP:'COL$' };
+    var currencySym = currencySymbols[window.qbCurrency] || (window.qbCurrency + ' ');
+    var currencyCode = window.qbCurrency || 'USD';
 
     // ─── HTML escape helper ──────────────────────────────────────
 
@@ -217,14 +223,17 @@ window.qbSettings = @json($settings);
                 imgHtml = '<td class="qb-col-img"></td>';
             }
 
-            // Product header row
+            // Product header row — title spans to Qty column
+            var headerColspan = 2; // variant label + sku (or title only if sku hidden)
+            if (hideSku) headerColspan--; // SKU gone, title takes its space
+            // Then add visible columns after title
+            var afterTitleCols = 1 // price (always)
+                + (hideStock ? 0 : 1)  // stock
+                + 1; // qty (always)
+
             html += '<tr class="qb-product-row">' +
                 imgHtml +
-                '<td colspan="2"><strong>' + escapeHtml(p.title) + '</strong></td>' +
-                (hideSku ? '' : '<td class="qb-col-sku"></td>') +
-                '<td class="qb-col-price"></td>' +
-                (hideStock ? '' : '<td class="qb-col-stock">' + variants.length + ' var</td>') +
-                '<td></td>' +
+                '<td colspan="' + (headerColspan + afterTitleCols) + '"><strong>' + escapeHtml(p.title) + '</strong></td>' +
                 '</tr>';
 
             // Variant rows
@@ -246,7 +255,7 @@ window.qbSettings = @json($settings);
                     '<td><span class="qb-variant-label">' + escapeHtml(vLabel) + '</span>' +
                         (oos ? ' <em>OOS</em>' : '') + '</td>' +
                     (hideSku ? '' : '<td class="qb-col-sku">' + escapeHtml(v.sku || '—') + '</td>') +
-                    '<td class="qb-col-price">$' + parseFloat(v.price).toFixed(2) + '</td>' +
+                    '<td class="qb-col-price">' + currencySym + parseFloat(v.price).toFixed(2) + '</td>' +
                     (hideStock ? '' : '<td class="qb-col-stock">' + getStockLabel(v.inventory, v.inventory_tracked) + '</td>') +
                     '<td class="qb-col-qty"><input type="number" min="' + qtyMin + '"' +
                         (qtyMax ? ' max="' + qtyMax + '"' : '') +
