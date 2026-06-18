@@ -19,12 +19,12 @@
 <main class="qb-main">
 
     <div class="qb-bar">
-        <button onclick="document.getElementById('qb-csv-input').click()">CSV</button>
-        <button onclick="window.open('/apps/quick-order/sample-csv')">Sample</button>
+        <button class="btn-upload" onclick="document.getElementById('qb-csv-input').click()">📄 Upload CSV</button>
+        <button onclick="window.open('/apps/quick-order/sample-csv')">📥 Sample</button>
         <span class="qb-sep"></span>
-        <button onclick="selectAllVisible()">Select All</button>
-        <button onclick="clearTableQty()">Deselect</button>
-        <button id="qb-btn-refresh" onclick="refreshCatalog()">Refresh</button>
+        <button onclick="selectAllVisible()">☑️ Select All</button>
+        <button onclick="clearTableQty()">✖️ Deselect</button>
+        <button id="qb-btn-refresh" onclick="refreshCatalog()">🔄 Refresh</button>
     </div>
 
     <small id="qb-csv-status" hidden></small>

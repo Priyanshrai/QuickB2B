@@ -34,6 +34,8 @@
 .qb-app button:hover { background:#f6f6f7; border-color:#b5b9bd }
 .btn-primary        { background:#008060; border-color:#008060; color:#fff; font-weight:600 }
 .btn-primary:hover  { background:#006e52; border-color:#006e52 }
+.btn-upload         { background:#e8f5e9; border-color:#2e7d32; color:#2e7d32; font-weight:600 }
+.btn-upload:hover   { background:#c8e6c9; border-color:#1b5e20 }
 .btn-dark           { background:#333; border-color:#333; color:#fff; font-weight:600 }
 .btn-dark:hover     { background:#1a1a1a; border-color:#1a1a1a }
 .btn-danger         { border-color:#c52f21; color:#c52f21 }

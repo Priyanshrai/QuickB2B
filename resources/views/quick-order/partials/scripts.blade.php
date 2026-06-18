@@ -251,7 +251,7 @@
 
 
     window.clearTableQty = function() {
-        if (!confirm('Clear all entered quantities?')) return;
+        if (!confirm('Remove all quantities you entered?')) return;
         cartItems = {};
         // Also hide CSV status
         var csvStatus = document.getElementById('qb-csv-status');
@@ -360,16 +360,14 @@
 
         if (hasOos) {
             filterOos = confirm(
-                'Some products may be out of stock.\n\n' +
-                'OK → IN-STOCK ONLY (skip OOS)\n' +
-                'Cancel → ALL products (include backorder)'
+                'Some items are out of stock.\n\nAdd only in-stock items?'
             );
         }
 
         // ── Quick Add limit ──────────────────────────────────────
         var QUICK_ADD_LIMIT = 200;
         if (method === 'permalink' && items.length > QUICK_ADD_LIMIT) {
-            alert(items.length + ' products is too many for Quick Add (limit: ' + QUICK_ADD_LIMIT + ').\n\nUse Bulk Add or Submit Order instead.');
+            alert(items.length + ' items is too many.\n\nUse "Bulk to Cart" or "Draft Order" instead.');
             return;
         }
 
@@ -387,7 +385,7 @@
                 await ajaxAddToCart(ajaxItems);
                 window.location.href = '/cart';
             } catch (e) {
-                alert('Cart API failed (' + e.message + ').\n\nTry Submit Order instead - it works on any store and creates an invoice.');
+                alert('Could not add to cart.\n\nTry "Draft Order" instead — it always works.');
             }
             return;
         }
@@ -400,7 +398,7 @@
             // Basic email format check
             var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(email)) {
-                alert('Please enter a valid email address (e.g., you@example.com).');
+                alert('Please enter a valid email (e.g., name@example.com).');
                 return;
             }
 
@@ -471,7 +469,7 @@
     // ─── Manual catalog refresh ──────────────────────────────────
 
     window.refreshCatalog = async function() {
-        if (!confirm('Refresh product catalog from Shopify? This may take 1-2 minutes.')) return;
+        if (!confirm('Update product list from your store? Takes about a minute.')) return;
 
         var btn = document.getElementById('qb-btn-refresh');
         if (btn) { btn.disabled = true; btn.textContent = 'Refreshing...'; }
@@ -507,7 +505,7 @@
         var filter = f ? f.value : 'all';
         var isFiltered = filter !== 'all';
 
-        var useFull = isFiltered || confirm('Select ALL matching products (across all pages)?\n\nOK = ALL (' + totalProducts + ' total)\nCancel = Only this page');
+        var useFull = isFiltered || confirm('Select all ' + totalProducts + ' matching products?\n\nOK = All pages\nCancel = This page only');
 
         if (useFull) {
             var body = { q: q };
