@@ -105,7 +105,12 @@ class QuickOrderController extends Controller
         }
 
         $items = $request->input('items', []);
-        $email = $request->input('email');
+        $email = filter_var($request->input('email'), FILTER_VALIDATE_EMAIL) ?: null;
+
+        if ($email === null && $request->input('email')) {
+            return response()->json(['error' => 'Invalid email address provided.'], 422);
+        }
+
         // Normalize boolean: accept JSON bool, string "true"/"false", or 1/0
         $filterOos = filter_var($request->input('filter_oos', true), FILTER_VALIDATE_BOOL);
         $shopDomain = $shop->getDomain()->toNative();

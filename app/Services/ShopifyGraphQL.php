@@ -38,7 +38,8 @@ class ShopifyGraphQL
     // ─── Page Operations ───────────────────────────────────────────
 
     /**
-     * Create an online store page. Returns page data or throws on error.
+     * Create an online store page. Returns page data or empty array on failure.
+     * Logs the full Shopify response when page creation fails.
      */
     public static function createPage($shop, string $title, string $bodyHtml = ''): array
     {
@@ -51,7 +52,8 @@ class ShopifyGraphQL
             }
         GQL;
 
-        $data = static::query($shop, $mutation, [
+        // Use raw() to capture full response for debugging failures
+        $response = static::raw($shop, $mutation, [
             'page' => [
                 'title'       => $title,
                 'body'        => $bodyHtml,
@@ -59,7 +61,28 @@ class ShopifyGraphQL
             ],
         ]);
 
-        return $data['pageCreate'] ?? [];
+        $body = $response['body'] ?? [];
+        $data = static::unwrap($body['data'] ?? []);
+
+        // Log any top-level GraphQL errors
+        if (!empty($body['errors'])) {
+            Log::warning('ShopifyGraphQL: pageCreate GraphQL errors', [
+                'errors' => $body['errors'],
+            ]);
+        }
+
+        $result = $data['pageCreate'] ?? [];
+
+        // Log full response if page creation produced no page (debugging)
+        if (empty($result['page'])) {
+            Log::error('ShopifyGraphQL: pageCreate failed — no page returned', [
+                'userErrors' => $result['userErrors'] ?? 'none',
+                'graphqlErrors' => $body['errors'] ?? 'none',
+                'httpStatusCode' => $response['status'] ?? 'unknown',
+            ]);
+        }
+
+        return $result;
     }
 
     /**

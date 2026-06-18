@@ -124,6 +124,30 @@ class PageController extends Controller
     }
 
     /**
+     * POST /page/unlink-menu
+     * Remove page from the navigation menu (without deleting the page).
+     */
+    public function unlinkFromMenu(Request $request)
+    {
+        $shop = Auth::user();
+        $page = QuickOrderPage::where('user_id', Auth::id())->firstOrFail();
+
+        if (!$page->menu_linked || !$page->shopify_menu_id) {
+            return back()->with('error', 'Page is not linked to any menu.');
+        }
+
+        try {
+            ShopifyGraphQL::removePageFromMenu($shop, $page->shopify_menu_id, $page->shopify_page_id);
+            $page->update(['menu_linked' => false, 'shopify_menu_id' => null]);
+            Log::info('QuickB2B: Page unlinked from menu', ['page' => $page->title]);
+            return back()->with('success', '🔓 Page removed from navigation menu.');
+        } catch (\Throwable $e) {
+            Log::error('QuickB2B: Menu unlink failed', ['error' => $e->getMessage()]);
+            return back()->with('error', 'Could not remove from menu: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * POST /page/link-menu
      * Add page to the main navigation menu.
      */

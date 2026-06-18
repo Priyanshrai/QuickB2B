@@ -37,7 +37,11 @@ class SetupController extends Controller
             return back()->with('error', 'Page creation failed: ' . $userErrors[0]['message']);
         }
 
-        $page = $result['page'];
+        $page = $result['page'] ?? null;
+        if (!$page || empty($page['id'])) {
+            Log::error('QuickB2B pageCreate returned no page data', ['result' => $result]);
+            return back()->with('error', 'Page creation failed. Shopify did not return page data. Please try again.');
+        }
         Log::info('QuickB2B page created', ['page' => $page]);
 
         // Save to DB (menu not linked yet)

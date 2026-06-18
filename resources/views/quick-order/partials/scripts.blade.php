@@ -340,6 +340,13 @@
             var email = prompt('Enter your email for invoice:', '');
             if (!email) return;
 
+            // Basic email format check
+            var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                alert('Please enter a valid email address (e.g., you@example.com).');
+                return;
+            }
+
             var drResp = await fetch('/apps/quick-order/api/draft-order', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ items: items, email: email, filter_oos: filterOos }),

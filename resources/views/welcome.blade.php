@@ -82,11 +82,22 @@
                                         <input type="hidden" name="host" value="{{ $host }}">
                                         <s-button type="submit" variant="secondary">🔗 Link to Menu</s-button>
                                     </form>
+                                @else
+                                    <form method="POST" action="{{ route('page.unlink-menu') }}" style="display:inline;">
+                                        @csrf @sessionToken
+                                        <input type="hidden" name="host" value="{{ $host }}">
+                                        <s-button type="submit" variant="secondary" tone="critical">🔓 Unlink from Menu</s-button>
+                                    </form>
                                 @endif
                                 <s-button variant="primary" tone="critical" onclick="shopify.modal.show('delete-page-modal')">🗑️ Delete Page</s-button>
                             </s-stack>
                         </s-stack>
                     </s-box>
+
+                    {{-- ⚠️ Uninstall Warning --}}
+                    <s-banner tone="warning" icon="circle-alert" style="margin-top:12px;">
+                        <strong>Before uninstalling this app:</strong> Use the <strong>🗑️ Delete Page</strong> button above to remove the Quick Order page and navigation menu link from your store. Uninstalling the app will NOT automatically remove them.
+                    </s-banner>
                 @else
                     <s-banner tone="info" heading="No Page Yet">
                         Create a Quick Order page to let wholesale customers place bulk orders instantly.
