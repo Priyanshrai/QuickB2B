@@ -27,7 +27,9 @@ class SetupController extends Controller
         // ─── Step 1: Create the page ─────────────────────────────────
         $result = ShopifyGraphQL::createPage($shop, 'Quick Order',
             QuickOrderPage::PAGE_MARKER
-            . '<p>Redirecting to Quick Order...</p>'
+            . '<h1>Express Bulk Order</h1>'
+            . '<p>Bulk order products in one click. <a href="/apps/quick-order">Go to Quick Order →</a></p>'
+            . '<noscript><meta http-equiv="refresh" content="0;url=/apps/quick-order"></noscript>'
             . '<script>window.location.href="/apps/quick-order"</script>'
         );
 

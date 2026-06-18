@@ -35,7 +35,9 @@ class PageController extends Controller
                 if (!str_contains($body, '/apps/quick-order')) {
                     ShopifyGraphQL::updatePageBody($shop, $shopifyPage['id'],
                         \App\Models\QuickOrderPage::PAGE_MARKER
-                        . '<p>Redirecting to Quick Order...</p>'
+                        . '<h1>Express Bulk Order</h1>'
+                        . '<p>Bulk order products in one click. <a href="/apps/quick-order">Go to Quick Order →</a></p>'
+                        . '<noscript><meta http-equiv="refresh" content="0;url=/apps/quick-order"></noscript>'
                         . '<script>window.location.href="/apps/quick-order"</script>'
                     );
                 }
