@@ -45,10 +45,11 @@ class QuickOrderController extends Controller
 
         $total = count($allProducts);
 
-        // Paginate: 100 per page
+        // Paginate: user-selectable per_page (10-1000, default 100)
         $page = max(1, (int) $request->query('page', 1));
-        $perPage = 100;
+        $perPage = min(500, max(10, (int) $request->query('per_page', 50)));
         $offset = ($page - 1) * $perPage;
+        $totalPages = (int) ceil($total / $perPage);
         $products = array_slice($allProducts, $offset, $perPage);
 
         return response()->json([
@@ -56,6 +57,7 @@ class QuickOrderController extends Controller
             'total'      => $total,
             'page'       => $page,
             'perPage'    => $perPage,
+            'totalPages' => $totalPages,
             'hasMore'    => $offset + $perPage < $total,
             'source'     => 'bulk',
         ]);

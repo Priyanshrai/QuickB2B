@@ -1,112 +1,68 @@
-{{-- Quick Order — App Proxy (embedded in store theme) --}}
+{{-- Quick Order — Minimal custom CSS --}}
 
 @include('quick-order.partials.styles')
 
-{{-- Progress banner --}}
-<div id="qb-progress" style="display:none;background:var(--qb-green);color:#fff;padding:8px 20px;font-size:13px;font-weight:600;text-align:center;">
+<input type="file" id="qb-csv-input" accept=".csv" hidden onchange="handleCSV(this)">
+
+<div id="qb-progress" hidden>
     <span id="qb-progress-text">Updating product catalog...</span>
-    <span id="qb-progress-pct" style="margin-left:8px;opacity:.8;"></span>
+    <small id="qb-progress-pct"></small>
 </div>
 
-<div class="qb-container">
+<header class="qb-header">
+    <h1>Quick Order</h1>
+    <p>Bulk order your products in one click. Built for B2B wholesale.</p>
+</header>
 
-    {{-- Header --}}
-    <div class="qb-header">
-        <h1>Quick Order</h1>
-        <p>Bulk order your products in one click. Built for B2B wholesale.</p>
+<main class="qb-main">
+
+    <div class="qb-bar">
+        <button onclick="document.getElementById('qb-csv-input').click()">CSV</button>
+        <button onclick="window.open('/apps/quick-order/sample-csv')">Sample</button>
+        <button onclick="selectAllVisible()">Select All</button>
+        <button onclick="clearTableQty()">Deselect</button>
+        <button onclick="refreshCatalog()">Refresh</button>
     </div>
 
-    {{-- Action Bar: Search + CSV + Buttons --}}
-    <div class="qb-card" style="padding:14px 20px;">
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <input type="text" class="qb-search" id="qb-search"
-                   placeholder="&#x1F50D; Search by name, SKU or tags..."
-                   oninput="filterProducts()"
-                   style="margin-bottom:0;flex:1;min-width:180px;">
+    <small id="qb-csv-status" hidden></small>
 
-            <button onclick="document.getElementById('qb-csv-input').click()"
-                    class="qb-btn" style="background:var(--qb-gray-100);color:var(--qb-gray-600);padding:8px 14px;font-size:12px;white-space:nowrap;">
-                &#x1F4E4; CSV
-            </button>
-            <a href="/apps/quick-order/sample-csv" download
-               style="font-size:11px;color:var(--qb-green);text-decoration:none;white-space:nowrap;">
-                &#x1F4E5; Sample
-            </a>
-            <input type="file" id="qb-csv-input" accept=".csv,.xlsx,.xls"
-                   style="display:none;" onchange="handleCSV(this)">
+    <input type="search" id="qb-search" class="qb-search" placeholder="Search by name, SKU or tags..." oninput="filterProducts()">
 
-            <span style="color:var(--qb-gray-200);margin:0 4px;">|</span>
+    <table id="qb-table">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>SKU</th>
+                <th>Tags</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th>Qty</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td colspan="6">Loading products...</td></tr>
+        </tbody>
+    </table>
 
-            <button onclick="refreshCatalog()" class="qb-btn"
-                    style="background:var(--qb-gray-100);color:var(--qb-gray-600);padding:8px 14px;font-size:12px;white-space:nowrap;"
-                    title="Refresh product catalog from Shopify">
-                &#x1F504; Refresh
-            </button>
+    <div id="qb-pagination"></div>
 
-            <button onclick="selectAllVisible()" class="qb-btn"
-                    style="background:var(--qb-gray-100);color:var(--qb-gray-600);padding:8px 14px;font-size:12px;white-space:nowrap;"
-                    title="Select all products on this page (qty=1)">
-                &#x2611; Select All
-            </button>
-
-            <span style="color:var(--qb-gray-200);margin:0 4px;">|</span>
-
-            <button onclick="smartCart('permalink')" class="qb-btn"
-                    style="background:var(--qb-green);color:#fff;padding:8px 14px;font-size:12px;white-space:nowrap;"
-                    title="Fast. Best for <300 products.">
-                &#x26A1; Quick Add
-            </button>
-            <button onclick="smartCart('ajax')" class="qb-btn"
-                    style="background:#4a4f55;color:#fff;padding:8px 14px;font-size:12px;white-space:nowrap;"
-                    title="Reliable. Works for any count.">
-                &#x1F6D2; Bulk Add
-            </button>
-            <button onclick="smartCart('draft')" class="qb-btn"
-                    style="background:#b98900;color:#fff;padding:8px 14px;font-size:12px;white-space:nowrap;"
-                    title="B2B. Creates draft order + sends invoice.">
-                &#x1F4E7; Submit Order
-            </button>
-
-            <span style="color:var(--qb-gray-200);margin:0 4px;">|</span>
-
-            <button onclick="clearTableQty()" class="qb-btn"
-                    style="background:var(--qb-gray-100);color:var(--qb-gray-600);padding:8px 14px;font-size:12px;white-space:nowrap;"
-                    title="Clear all quantities in the table">
-                &#x274E; Clear
-            </button>
-            <button id="qb-clear-cart" class="qb-btn"
-                    style="background:#d82c0d;color:#fff;padding:8px 14px;font-size:12px;white-space:nowrap;"
-                    onclick="clearShopifyCart()" title="Empty your Shopify cart">
-                &#x1F5D1; Clear Cart
-            </button>
-        </div>
-        <div id="qb-csv-status" style="font-size:11px;color:var(--qb-green);display:none;margin-top:6px;"></div>
+    <div class="qb-bar" style="margin-top:12px">
+        <button id="qb-btn-draft" onclick="smartCart('draft')" class="btn-primary">Draft Order</button>
+        <button id="qb-btn-ajax" onclick="smartCart('ajax')" class="btn-dark">Bulk to Cart</button>
+        <button id="qb-btn-permalink" onclick="smartCart('permalink')">Add to Cart</button>
+        <button id="qb-clear-cart" onclick="clearShopifyCart()" class="btn-danger">Clear Shopify Cart</button>
     </div>
 
-    {{-- Product Table --}}
-    <div class="qb-card">
-        <table class="qb-table" id="qb-table">
-            <thead>
-                <tr>
-                    <th>Product</th>
-                    <th>SKU</th>
-                    <th>Tags</th>
-                    <th>Price</th>
-                    <th>Stock</th>
-                    <th style="width:100px;">Qty</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr><td colspan="6" class="qb-empty">Loading products&hellip;</td></tr>
-            </tbody>
-        </table>
-    </div>
+</main>
 
-    {{-- Footer --}}
-    <div class="qb-footer">
-        <p>Powered by QuickB2B &mdash; Built for wholesale &amp; B2B ordering</p>
+<footer class="qb-footer">
+    <div class="qb-help">
+        <p><strong>Tip:</strong> If no quantities are entered, all visible products are included (qty = 1). Select specific products by entering quantities in the Qty column.</p>
+        <p><strong>Draft Order</strong> — Works always. Creates a draft order and emails you an invoice link.</p>
+        <p><strong>Bulk to Cart</strong> — Uses AJAX cart API. May not work on all stores. Adds products in batches of 50.</p>
+        <p><strong>Add to Cart</strong> — Fast permalink method. Limited to 200 items. Best for smaller orders.</p>
     </div>
-
-</div>
+    <small>Powered by QuickB2B — Built for wholesale &amp; B2B ordering</small>
+</footer>
 
 @include('quick-order.partials.scripts')

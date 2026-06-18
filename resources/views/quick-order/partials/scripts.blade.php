@@ -5,17 +5,19 @@
     var products = [];
     var cartItems = {};
     var currentPage = 1;
+    var currentPerPage = 50;
     var currentQuery = '';
-    var hasMore = false;
-    var isLoadingMore = false;
+    var totalProducts = 0;
+    var totalPages = 1;
 
     // ─── Load products from backend ───────────────────────────────
 
-    async function loadProducts(query, page) {
+    async function loadProducts(query, page, perPage) {
         query = query || '';
         page = page || 1;
+        perPage = perPage || currentPerPage;
 
-        var url = '/apps/quick-order/api/products?page=' + page + '&per_page=100';
+        var url = '/apps/quick-order/api/products?page=' + page + '&per_page=' + perPage;
         if (query) url += '&q=' + encodeURIComponent(query);
 
         try {
@@ -23,25 +25,24 @@
             var data = await resp.json();
 
             if (data.source === 'waiting') {
-                document.querySelector('#qb-table tbody').innerHTML =
-                    '<tr><td colspan="6" class="qb-empty">&#x23F3; Loading product catalog&hellip;</td></tr>';
-                pollCatalogStatus(function() { loadProducts(query, page); });
+                var tbody = document.querySelector('#qb-table tbody');
+                tbody.innerHTML = '<tr><td colspan="6">Loading product catalog...</td></tr>';
+                pollCatalogStatus(function() { loadProducts(query, page, perPage); });
                 return;
             }
 
-            if (page === 1) {
-                products = data.products || [];
-            } else {
-                products = products.concat(data.products || []);
-            }
-
-            hasMore = data.hasMore || false;
+            products = data.products || [];
+            totalProducts = data.total || 0;
+            totalPages = data.totalPages || 1;
             currentPage = page;
+            currentPerPage = perPage;
             currentQuery = query;
+
             renderProducts();
+            renderPagination();
         } catch (e) {
             document.querySelector('#qb-table tbody').innerHTML =
-                '<tr><td colspan="6" class="qb-empty">&#x26A0;&#xFE0F; Could not load products. Please try again.</td></tr>';
+                '<tr><td colspan="6">Could not load products. Please try again.</td></tr>';
         }
     }
 
@@ -53,23 +54,44 @@
         var q = document.getElementById('qb-search').value;
         searchTimer = setTimeout(function() {
             currentQuery = q;
-            loadProducts(q, 1);
-        }, 300); // debounce 300ms
+            loadProducts(q, 1, currentPerPage);
+        }, 300);
     };
 
-    // ─── Infinite scroll (load next page) ─────────────────────────
+    // ─── Pagination ───────────────────────────────────────────────
 
-    window.onscroll = function() {
-        if (isLoadingMore || !hasMore) return;
-        var scrollBottom = window.innerHeight + window.scrollY;
-        var docHeight = document.documentElement.scrollHeight;
-        if (scrollBottom >= docHeight - 400) {
-            isLoadingMore = true;
-            loadProducts(currentQuery, currentPage + 1).then(function() {
-                isLoadingMore = false;
-            });
-        }
+    window.goToPage = function(page) {
+        if (page < 1 || page > totalPages) return;
+        loadProducts(currentQuery, page, currentPerPage);
     };
+
+    window.changePerPage = function(perPage) {
+        perPage = parseInt(perPage);
+        currentPerPage = perPage;
+        loadProducts(currentQuery, 1, perPage);
+    };
+
+    function renderPagination() {
+        var container = document.getElementById('qb-pagination');
+        if (!container) return;
+
+        var from = totalProducts === 0 ? 0 : (currentPage - 1) * currentPerPage + 1;
+        var to = Math.min(currentPage * currentPerPage, totalProducts);
+
+        var perPageOptions = [50, 100, 200, 500];
+        var optionsHtml = perPageOptions.map(function(n) {
+            return '<option value="' + n + '"' + (currentPerPage === n ? ' selected' : '') + '>' + n + ' per page</option>';
+        }).join('');
+
+        container.innerHTML =
+            '<span class="qb-pg-info">Showing ' + from + '–' + to + ' of ' + totalProducts + '</span>' +
+            '<span class="qb-pg-actions">' +
+                '<select onchange="changePerPage(this.value)">' + optionsHtml + '</select>' +
+                '<button onclick="goToPage(' + (currentPage - 1) + ')"' + (currentPage <= 1 ? ' disabled' : '') + '>Prev</button>' +
+                '<span>Page ' + currentPage + ' of ' + totalPages + '</span>' +
+                '<button onclick="goToPage(' + (currentPage + 1) + ')"' + (currentPage >= totalPages ? ' disabled' : '') + '>Next</button>' +
+            '</span>';
+    }
 
     // ─── Background catalog refresh progress ──────────────────────
 
@@ -80,18 +102,18 @@
                 .then(function(s) {
                     if (s.status === 'starting' || s.status === 'querying' || s.status === 'processing' || s.status === 'downloading') {
                         var bar = document.getElementById('qb-progress');
-                        bar.style.display = 'block';
-                        document.getElementById('qb-progress-text').textContent = '&#x1F504; Updating product catalog...';
+                        bar.removeAttribute('hidden');
+                        document.getElementById('qb-progress-text').textContent = 'Updating product catalog...';
                         document.getElementById('qb-progress-pct').textContent = s.percent + '% (' + (s.records || '') + ' records)';
                     }
                     if (s.status === 'complete') {
                         clearInterval(interval);
-                        document.getElementById('qb-progress').style.display = 'none';
+                        document.getElementById('qb-progress').setAttribute('hidden', '');
                         if (onComplete) onComplete();
                     }
                     if (s.status === 'failed') {
                         clearInterval(interval);
-                        document.getElementById('qb-progress').style.display = 'none';
+                        document.getElementById('qb-progress').setAttribute('hidden', '');
                     }
                 });
         }, 3000);
@@ -103,21 +125,11 @@
         var tbody = document.querySelector('#qb-table tbody');
 
         if (!products.length) {
-            tbody.innerHTML = '<tr><td colspan="6" class="qb-empty">No products found.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6">No products found.</td></tr>';
             return;
         }
 
-        // Rebuild from scratch (replace, not append) for search/filter
-        if (currentPage === 1) {
-            tbody.innerHTML = products.map(function(p) {
-                return buildRow(p);
-            }).join('');
-        } else {
-            // Append new page rows
-            tbody.innerHTML += products.slice(-100).map(function(p) {
-                return buildRow(p);
-            }).join('');
-        }
+        tbody.innerHTML = products.map(function(p) { return buildRow(p); }).join('');
 
         updateCartCount();
     }
@@ -126,44 +138,42 @@
         var qty = cartItems[p.variant_id] || '';
         var productLabel = p.title;
         if (p.variant_title && p.variant_title !== 'Default Title') {
-            productLabel += ' &mdash; ' + p.variant_title;
+            productLabel += ' — ' + p.variant_title;
         }
         var oos = isOutOfStock(p);
-        var disabledAttr = oos ? ' disabled title="Out of stock"' : '';
+        var disabledAttr = oos ? ' disabled' : '';
 
-        // Format tags as small badges (handles both string and array)
         var tagsHtml = '';
         if (p.tags && p.tags !== '{}' && p.tags !== '[]') {
             var tagList = Array.isArray(p.tags) ? p.tags : String(p.tags).split(',');
             tagsHtml = tagList.filter(function(t) { return t && String(t).trim(); }).map(function(t) {
-                return '<span style="display:inline-block;background:var(--qb-gray-100);color:var(--qb-gray-600);padding:1px 6px;border-radius:3px;font-size:10px;margin:1px 2px;">' + String(t).trim() + '</span>';
-            }).join('');
+                return String(t).trim();
+            }).join(', ');
         }
 
-        return '<tr class="' + (oos ? 'qb-row-oos' : '') + '">' +
-            '<td><strong>' + productLabel + '</strong>' + (oos ? ' <span style="color:#d82c0d;font-size:11px;">(OOS)</span>' : '') + '</td>' +
-            '<td>' + (p.sku || '&mdash;') + '</td>' +
-            '<td>' + (tagsHtml || '&mdash;') + '</td>' +
+        return '<tr>' +
+            '<td><strong>' + productLabel + '</strong>' + (oos ? ' <em>OOS</em>' : '') + '</td>' +
+            '<td>' + (p.sku || '—') + '</td>' +
+            '<td>' + (tagsHtml || '—') + '</td>' +
             '<td>$' + parseFloat(p.price).toFixed(2) + '</td>' +
             '<td>' + getStockLabel(p.inventory, p.inventory_tracked) + '</td>' +
-            '<td><input type="number" class="qb-qty" min="0" value="' + qty +
+            '<td><input type="number" min="0" value="' + qty +
                 '" placeholder="0" data-id="' + p.variant_id +
                 '" onchange="updateCart(this)"' + disabledAttr + '></td>' +
             '</tr>';
     }
 
     function getStockLabel(inventory, tracked) {
-        // tracked=false or '' means untracked (overselling allowed) → Unlimited
         if (!tracked) {
-            return '<span class="qb-stock-in">Unlimited</span>';
+            return 'Unlimited';
         }
         if (inventory > 10) {
-            return '<span class="qb-stock-in">' + inventory + ' in stock</span>';
+            return inventory + ' in stock';
         }
         if (inventory > 0) {
-            return '<span class="qb-stock-low">Only ' + inventory + ' left</span>';
+            return 'Only ' + inventory + ' left';
         }
-        return '<span class="qb-stock-out">Out of stock</span>';
+        return 'Out of stock';
     }
 
     function isOutOfStock(p) {
@@ -237,6 +247,12 @@
     // ─── Smart Cart: permalink / AJAX / Draft Order ──────────────
 
     window.smartCart = async function(method) {
+        // Loading spinner — Polaris s-button loading attribute
+        var btnMap = { draft: '#qb-btn-draft', ajax: '#qb-btn-ajax', permalink: '#qb-btn-permalink' };
+        var clickedBtn = document.querySelector(btnMap[method]);
+        if (clickedBtn) { clickedBtn.disabled = true; }
+
+        try {
         var q = document.getElementById('qb-search').value;
         var useSelected = Object.keys(cartItems).length > 0;
 
@@ -308,7 +324,7 @@
 
         // ── Method 3: Draft Order ──
         if (method === 'draft') {
-            var email = prompt('✉️ Enter your email for invoice:', '');
+            var email = prompt('Enter your email for invoice:', '');
             if (!email) return;
 
             var drResp = await fetch('/apps/quick-order/api/draft-order', {
@@ -341,13 +357,17 @@
             if (drData.invoice_url) resultMsg += '\nInvoice sent to ' + email + '!';
             alert(resultMsg);
         }
+
+        } finally {
+            if (clickedBtn) { clickedBtn.disabled = false; }
+        }
     };
 
     // ─── Poll draft order progress ────────────────────────────────
 
     function pollDraftOrderStatus() {
         var bar = document.getElementById('qb-progress');
-        bar.style.display = 'block';
+        bar.removeAttribute('hidden');
         document.getElementById('qb-progress-text').textContent = 'Processing draft orders...';
 
         var interval = setInterval(async function() {
@@ -360,12 +380,12 @@
             }
             if (s.status === 'complete') {
                 clearInterval(interval);
-                bar.style.display = 'none';
+                bar.setAttribute('hidden', '');
                 alert(s.message);
             }
             if (s.status === 'failed') {
                 clearInterval(interval);
-                bar.style.display = 'none';
+                bar.setAttribute('hidden', '');
                 alert('Failed: ' + (s.error || 'Unknown error'));
             }
         }, 5000);
@@ -378,7 +398,7 @@
 
         // Hide table, show progress
         document.querySelector('#qb-table tbody').innerHTML =
-            '<tr><td colspan="6" class="qb-empty">&#x23F3; Starting catalog refresh&hellip;</td></tr>';
+            '<tr><td colspan="6">Starting catalog refresh...</td></tr>';
 
         var resp = await fetch('/apps/quick-order/api/products/refresh', { method: 'POST' });
         var data = await resp.json();
@@ -393,36 +413,17 @@
     // ─── Select all / Deselect all visible ──────────────────────
 
     window.selectAllVisible = function() {
-        var inputs = document.querySelectorAll('#qb-table tbody .qb-qty');
-        var allSelected = true;
-
-        // Check if all enabled inputs already have qty=1
-        inputs.forEach(function(input) {
-            if (!input.disabled && !(input.value > 0)) allSelected = false;
-        });
-
+        var inputs = document.querySelectorAll('#qb-table tbody input[type="number"]');
         var count = 0;
         inputs.forEach(function(input) {
             if (!input.disabled) {
-                if (allSelected) {
-                    // Deselect all
-                    input.value = '';
-                    delete cartItems[input.dataset.id];
-                } else {
-                    // Select all
-                    input.value = 1;
-                    cartItems[input.dataset.id] = 1;
-                    count++;
-                }
+                input.value = 1;
+                cartItems[input.dataset.id] = 1;
+                count++;
             }
         });
-
         updateCartCount();
-        if (allSelected) {
-            alert('All deselected.');
-        } else {
-            alert(count + ' products selected (qty=1). Click again to deselect.');
-        }
+        if (count) alert(count + ' products selected.');
     };
 
     // ─── CSV upload ───────────────────────────────────────────────
@@ -458,7 +459,7 @@
             });
 
             var status = document.getElementById('qb-csv-status');
-            status.style.display = 'block';
+            status.removeAttribute('hidden');
             status.textContent = count + ' products matched from CSV';
 
             renderProducts(document.getElementById('qb-search').value);
