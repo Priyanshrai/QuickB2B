@@ -117,7 +117,8 @@ class RefreshProductCacheJob implements ShouldQueue
             }
 
             $products = [];
-            $productCollections = [];  // product GID → [collection titles]
+            $variantToProduct = [];
+            $variantCollections = [];
 
             foreach (explode("\n", $jsonl) as $line) {
                 $line = trim($line);
@@ -126,23 +127,29 @@ class RefreshProductCacheJob implements ShouldQueue
                 $obj = json_decode($line, true);
                 if (!$obj) continue;
 
-                // Collection line (flattened connection — has __parentId pointing to product)
-                if (isset($obj['__parentId']) && !empty($obj['title']) && str_contains($obj['__parentId'], '/Product/')) {
-                    $productCollections[$obj['__parentId']][] = $obj['title'];
+                $objId = $obj['id'] ?? '';
+                $objTitle = $obj['title'] ?? '';
+                $parentId = $obj['__parentId'] ?? '';
+
+                // Collection line — __parentId points to the VARIANT
+                if ($parentId && $objTitle && !str_contains($objId, '/ProductVariant/')) {
+                    $variantCollections[$parentId][] = $objTitle;
                     continue;
                 }
 
-                // Variant line (main node from productVariants connection)
-                // product is a nested FIELD (not connection), so it stays inline
-                $variantId = $obj['id'] ?? '';
-                if (!$variantId || !str_contains($variantId, '/ProductVariant/')) {
-                    continue; // skip non-variant lines (e.g., standalone products)
+                // Only variant lines
+                if (!$objId || !str_contains($objId, '/ProductVariant/')) {
+                    continue;
                 }
 
                 $product = $obj['product'] ?? [];
                 $productId = $product['id'] ?? '';
+                $variantId = $objId;
 
-                // Normalize tags
+                if ($productId) {
+                    $variantToProduct[$variantId] = $productId;
+                }
+
                 $rawTags = $product['tags'] ?? '';
                 if (is_array($rawTags)) {
                     $rawTags = implode(', ', $rawTags);
@@ -158,11 +165,18 @@ class RefreshProductCacheJob implements ShouldQueue
                     'inventory'         => $obj['inventoryQuantity'] ?? 0,
                     'inventory_tracked' => ($obj['inventoryPolicy'] ?? '') === 'DENY',
                     'tags'              => $rawTags,
-                    'collections'       => [],  // filled below
+                    'collections'       => [],
                 ];
             }
 
-            // Attach collections to their products
+            // Attach collections: variant → product
+            $productCollections = [];
+            foreach ($variantCollections as $vid => $cols) {
+                $pid = $variantToProduct[$vid] ?? null;
+                if ($pid) {
+                    $productCollections[$pid] = array_merge($productCollections[$pid] ?? [], $cols);
+                }
+            }
             foreach ($products as &$p) {
                 $pid = $p['id'];
                 if ($pid && isset($productCollections[$pid])) {

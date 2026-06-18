@@ -45,7 +45,7 @@
 
 /* Layout */
 .qb-header          { text-align:center; margin-bottom:24px }
-.qb-header p        { color:#6d7175; margin:0 }
+.qb-header p        { color:#6d7175; margin:8px 0 0 0 }
 .qb-main            { max-width:960px; margin:0 auto; padding:0 20px }
 .qb-bar             { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin-bottom:8px; align-items:center }
 .qb-sep             { width:1px; height:18px; background:#d5d8db; margin:0 4px }
@@ -62,9 +62,12 @@
 
 /* Pagination */
 #qb-pagination      { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid #e4e5e7; font-size:12px; color:#6d7175 }
-.qb-pg-actions      { display:flex; align-items:center; gap:6px }
-.qb-pg-actions select,
-.qb-pg-actions button { padding:3px 6px; font-size:12px }
+.qb-pg-info         { font-weight:500 }
+.qb-pg-current      { font-weight:600; color:#202223; min-width:60px; text-align:center }
+.qb-pg-actions      { display:flex; align-items:center; gap:8px }
+.qb-pg-select       { padding:4px 8px; border:1px solid #c9cccf; border-radius:4px; font-size:12px; font-family:inherit; background:#fff }
+.qb-pg-btn          { padding:4px 10px; font-size:12px }
+.qb-pg-btn:disabled { opacity:.4; cursor:not-allowed }
 
 /* Progress bar */
 #qb-progress        { padding:10px 16px; background:#008060; color:#fff; text-align:center; font-weight:600; border-radius:6px; margin-bottom:16px }
@@ -82,8 +85,8 @@
   .qb-help          { margin:0 0 16px; padding:10px 12px; font-size:11px }
   #qb-pagination    { justify-content:center; gap:6px; font-size:11px }
   .qb-pg-actions    { gap:4px }
-  .qb-pg-actions select,
-  .qb-pg-actions button { font-size:11px }
+  .qb-pg-select     { font-size:11px; padding:3px 6px }
+  .qb-pg-btn        { padding:3px 8px; font-size:11px }
   .qb-product-row td { border:none !important }
   .qb-variant-row td { border-bottom:1px solid #f0f0f0 }
 }

@@ -84,6 +84,8 @@
     window.changePerPage = function(perPage) {
         perPage = parseInt(perPage);
         currentPerPage = perPage;
+        var sel = document.querySelector('.qb-pg-select');
+        if (sel) sel.disabled = true;
         loadProducts(currentQuery, 1, perPage);
     };
 
@@ -100,12 +102,12 @@
         }).join('');
 
         container.innerHTML =
-            '<span class="qb-pg-info">Showing ' + from + '–' + to + ' of ' + totalProducts + '</span>' +
+            '<span class="qb-pg-info">' + from + '–' + to + ' of ' + totalProducts + '</span>' +
             '<span class="qb-pg-actions">' +
-                '<select onchange="changePerPage(this.value)">' + optionsHtml + '</select>' +
-                '<button onclick="goToPage(' + (currentPage - 1) + ')"' + (currentPage <= 1 ? ' disabled' : '') + '>Prev</button>' +
-                '<span>Page ' + currentPage + ' of ' + totalPages + '</span>' +
-                '<button onclick="goToPage(' + (currentPage + 1) + ')"' + (currentPage >= totalPages ? ' disabled' : '') + '>Next</button>' +
+                '<select class="qb-pg-select" onchange="changePerPage(this.value)">' + optionsHtml + '</select>' +
+                '<button class="qb-pg-btn" onclick="goToPage(' + (currentPage - 1) + ')"' + (currentPage <= 1 ? ' disabled' : '') + '>← Prev</button>' +
+                '<span class="qb-pg-current">' + currentPage + ' / ' + totalPages + '</span>' +
+                '<button class="qb-pg-btn" onclick="goToPage(' + (currentPage + 1) + ')"' + (currentPage >= totalPages ? ' disabled' : '') + '>Next →</button>' +
             '</span>';
     }
 
