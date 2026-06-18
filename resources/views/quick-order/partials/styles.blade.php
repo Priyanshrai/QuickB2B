@@ -15,6 +15,8 @@
 #qb-table thead th  { border-bottom:1px solid #d5d8db }
 #qb-table tbody tr:hover { background:#f9fafb }
 .qb-col-price       { text-align:right; width:85px }
+.qb-col-sku         { width:100px; word-break:break-all; font-size:12px }
+.qb-col-price       { text-align:right; width:85px }
 .qb-col-stock       { text-align:center; width:60px }
 .qb-stock-pill      { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; line-height:1.2; white-space:nowrap }
 .qb-stock-ok        { background:#e8f5e9; color:#2e7d32 }

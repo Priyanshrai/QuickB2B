@@ -44,7 +44,7 @@
         <thead>
             <tr>
                 <th>Product / Variant</th>
-                <th style="width:80px">SKU</th>
+                <th class="qb-col-sku">SKU</th>
                 <th class="qb-col-price">Price</th>
                 <th class="qb-col-stock">Stock</th>
                 <th class="qb-col-qty">Qty</th>

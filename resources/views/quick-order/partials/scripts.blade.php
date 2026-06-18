@@ -75,6 +75,9 @@
 
     window.goToPage = function(page) {
         if (page < 1 || page > totalPages) return;
+        // Loading state
+        var btn = document.querySelector('.qb-pg-actions button[onclick*="goToPage(' + page + ')"]');
+        if (btn) { btn.disabled = true; btn.textContent = '...'; }
         loadProducts(currentQuery, page, currentPerPage);
     };
 
@@ -205,7 +208,7 @@
                 html += '<tr class="qb-variant-row">' +
                     '<td><span class="qb-variant-label">' + escapeHtml(vLabel) + '</span>' +
                         (oos ? ' <em>OOS</em>' : '') + '</td>' +
-                    '<td>' + escapeHtml(v.sku || '—') + '</td>' +
+                    '<td class="qb-col-sku">' + escapeHtml(v.sku || '—') + '</td>' +
                     '<td class="qb-col-price">$' + parseFloat(v.price).toFixed(2) + '</td>' +
                     '<td class="qb-col-stock">' + getStockLabel(v.inventory, v.inventory_tracked) + '</td>' +
                     '<td class="qb-col-qty"><input type="number" min="0" value="' + qty +
