@@ -81,17 +81,6 @@
                 </s-banner>
             </s-section>
 
-            {{-- ───── 🧪 TEST: Partner API Debug ───── --}}
-            <s-section heading="🧪 Test Partner API">
-                <s-banner tone="info" style="margin-bottom:12px;">
-                    ⚡ This tests the Partner API integration + SyncSubscriptionsJob. All output goes to <code>storage/logs/laravel.log</code>.
-                </s-banner>
-                <s-button variant="secondary" id="btn-test-partner-api">
-                    🧪 Run Partner API Test
-                </s-button>
-                <s-banner id="test-partner-result" style="display:none; margin-top:12px;"></s-banner>
-            </s-section>
-
             {{-- ───── Cleanup Before Uninstalling ───── --}}
             @if ($quickPage)
                 <s-section heading="⚠️ Before You Go">
@@ -161,39 +150,6 @@
                     }
                 </script>
             @endif
-
-            {{-- 🧪 TEMP: Partner API test script --}}
-            <script>
-                document.getElementById('btn-test-partner-api').addEventListener('click', async function () {
-                    var btn = this;
-                    var banner = document.getElementById('test-partner-result');
-                    btn.setAttribute('loading', '');
-                    btn.disabled = true;
-                    banner.style.display = 'block';
-                    banner.setAttribute('tone', 'info');
-                    banner.textContent = '⏳ Dispatching SyncSubscriptionsJob...';
-
-                    try {
-                        var resp = await fetch('{{ route('test.partner-api') }}', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                            },
-                            body: JSON.stringify({ host: '{{ $host }}' }),
-                        });
-                        var data = await resp.json();
-                        banner.setAttribute('tone', 'success');
-                        banner.textContent = '✅ ' + data.message;
-                    } catch (e) {
-                        banner.setAttribute('tone', 'critical');
-                        banner.textContent = '❌ Request failed: ' + e.message;
-                    } finally {
-                        btn.removeAttribute('loading');
-                        btn.disabled = false;
-                    }
-                });
-            </script>
 
         </s-stack>
 

@@ -24,19 +24,6 @@ class PartnerApi
         if ($this->appGid && str_starts_with($this->appGid, 'gid://shopify/')) {
             $this->appGid = str_replace('gid://shopify/', 'gid://partners/', $this->appGid);
         }
-
-        Log::debug('[PartnerApi::construct] Credentials loaded', [
-            'org_id'      => $this->orgId ?: '(empty)',
-            'token_len'   => strlen($this->token ?: ''),
-            'token_prefix'=> substr($this->token ?: '', 0, 10) . '...',
-            'app_gid'     => $this->appGid ?: '(empty)',
-            'source'      => [
-                'config_org'  => config('shopify-app.partner_api.org_id'),
-                'config_token_len' => strlen(config('shopify-app.partner_api.token') ?: ''),
-                'env_org'     => env('PARTNER_API_ORG_ID'),
-                'env_token_len' => strlen(env('PARTNER_API_TOKEN') ?: ''),
-            ],
-        ]);
     }
 
     /**
@@ -45,10 +32,6 @@ class PartnerApi
      */
     public function getActiveSubscription(string $shopGid): ?string
     {
-        Log::debug('[PartnerApi::getActiveSubscription] STEP 1: Starting', [
-            'shop_gid' => $shopGid,
-        ]);
-
         if (!$this->token || !$this->orgId || !$this->appGid) {
             Log::warning('PartnerApi: Missing credentials', [
                 'org_id' => (bool) $this->orgId,
@@ -57,8 +40,6 @@ class PartnerApi
             ]);
             return null;
         }
-
-        Log::debug('[PartnerApi::getActiveSubscription] STEP 2: Credentials OK, building API call');
 
         $query = <<<'GQL'
             query AppEvents($appId: ID!, $shopId: ID!) {
@@ -79,19 +60,6 @@ class PartnerApi
             }
         GQL;
 
-        $url = "https://partners.shopify.com/{$this->orgId}/api/{$this->apiVersion}/graphql.json";
-        $variables = [
-            'appId'  => $this->appGid,
-            'shopId' => $shopGid,
-        ];
-
-        Log::debug('[PartnerApi::getActiveSubscription] STEP 3: Making HTTP request', [
-            'url'          => $url,
-            'app_gid'      => $this->appGid,
-            'shop_gid'     => $shopGid,
-            'token_prefix' => substr($this->token, 0, 8) . '...',
-        ]);
-
         try {
             $response = Http::withHeaders([
                 'X-Shopify-Access-Token' => $this->token,
@@ -99,15 +67,13 @@ class PartnerApi
             ])
                 ->timeout(10)
                 ->connectTimeout(5)
-                ->post($url, [
+                ->post("https://partners.shopify.com/{$this->orgId}/api/{$this->apiVersion}/graphql.json", [
                     'query'     => $query,
-                    'variables' => $variables,
+                    'variables' => [
+                        'appId'  => $this->appGid,
+                        'shopId' => $shopGid,
+                    ],
                 ]);
-
-            Log::debug('[PartnerApi::getActiveSubscription] STEP 4: Response received', [
-                'status'  => $response->status(),
-                'body'    => $response->body(),
-            ]);
 
             if (!$response->successful()) {
                 Log::error('PartnerApi: HTTP error', [
@@ -119,30 +85,14 @@ class PartnerApi
 
             $data = $response->json();
 
-            Log::debug('[PartnerApi::getActiveSubscription] STEP 5: Parsed JSON', [
-                'data' => $data,
-            ]);
-
             $events = $data['data']['app']['events']['edges'] ?? [];
-            Log::debug('[PartnerApi::getActiveSubscription] STEP 6: Events found', [
-                'count' => count($events),
-            ]);
 
             // No SUBSCRIPTION_CHARGE_ACTIVATED events = no active subscription
             if (empty($events)) {
-                Log::info('[PartnerApi::getActiveSubscription] RESULT: No active subscription (no activation events)');
                 return null;
             }
 
-            $charge = $events[0]['node']['charge'] ?? null;
-            $handle = $charge['name'] ?? null;
-
-            Log::info('[PartnerApi::getActiveSubscription] RESULT: Found active charge', [
-                'charge_id'   => $charge['id'] ?? 'null',
-                'charge_name' => $handle,
-            ]);
-
-            return $handle;
+            return $events[0]['node']['charge']['name'] ?? null;
 
         } catch (ConnectionException $e) {
             Log::error('PartnerApi: Connection failed', ['error' => $e->getMessage()]);
@@ -156,30 +106,14 @@ class PartnerApi
      */
     public function syncShopSubscription($shop): bool
     {
-        Log::debug('[PartnerApi::syncShopSubscription] STEP 1: Starting sync', [
-            'shop'    => $shop->getDomain()->toNative(),
-            'plan_id' => $shop->plan_id,
-        ]);
-
         $shopGid = $this->getShopGid($shop);
         if (!$shopGid) {
-            Log::warning('[PartnerApi::syncShopSubscription] FAIL: No shop GID');
             return false;
         }
 
-        Log::debug('[PartnerApi::syncShopSubscription] STEP 2: Shop GID = ' . $shopGid);
-
         $handle = $this->getActiveSubscription($shopGid);
 
-        Log::debug('[PartnerApi::syncShopSubscription] STEP 3: API returned', [
-            'handle' => $handle,
-        ]);
-
         $shop->update(['plan_id' => $handle]);
-
-        Log::debug('[PartnerApi::syncShopSubscription] STEP 4: DB updated', [
-            'new_plan_id' => $handle,
-        ]);
 
         if ($handle) {
             Log::info('PartnerApi: Subscription active', [
@@ -201,34 +135,17 @@ class PartnerApi
      */
     protected function getShopGid($shop): ?string
     {
-        Log::debug('[PartnerApi::getShopGid] Building GID', [
-            'shop' => $shop->getDomain()->toNative(),
-        ]);
-
         try {
-            // Use shop's own API to query its real Shopify ID
             $response = $shop->api()->rest('GET', '/admin/api/shop.json');
-
-            Log::debug('[PartnerApi::getShopGid] Shopify /admin/api/shop.json response', [
-                'status' => $response['status'] ?? 'unknown',
-            ]);
 
             $shopId = $response['body']['shop']['id'] ?? null;
 
             if ($shopId) {
-                $gid = "gid://partners/Shop/{$shopId}";
-                Log::debug('[PartnerApi::getShopGid] GID built from Admin API', [
-                    'shopify_id' => $shopId,
-                    'gid'        => $gid,
-                ]);
-                return $gid;
+                return "gid://partners/Shop/{$shopId}";
             }
-
-            Log::warning('[PartnerApi::getShopGid] No ID in shop API response', [
-                'response' => $response,
-            ]);
         } catch (\Exception $e) {
-            Log::error('[PartnerApi::getShopGid] Admin API call failed', [
+            Log::error('PartnerApi: Admin API shop query failed', [
+                'shop'  => $shop->getDomain()->toNative(),
                 'error' => $e->getMessage(),
             ]);
         }

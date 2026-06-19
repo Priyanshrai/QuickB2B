@@ -93,12 +93,6 @@ Route::middleware(['verify.shopify'])->group(function () {
         ->name('page.delete');
     Route::post('/page/unlink-menu', [\App\Http\Controllers\PageController::class, 'unlinkFromMenu'])
         ->name('page.unlink-menu');
-
-    // ── TEMP: Test Partner API — dispatches SyncSubscriptionsJob ──
-    Route::post('/subscription/test-partner-api', function () {
-        \App\Jobs\SyncSubscriptionsJob::dispatch();
-        return response()->json(['ok' => true, 'message' => 'SyncSubscriptionsJob dispatched. Check laravel.log']);
-    })->name('test.partner-api');
 });
 
 // ── All other Admin routes (require active subscription) ────────
