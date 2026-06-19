@@ -33,7 +33,6 @@
         <span class="qb-sep"></span>
         <button onclick="selectAllVisible()">☑️ Select All</button>
         <button onclick="clearTableQty()">✖️ Deselect</button>
-        <button id="qb-btn-refresh" onclick="refreshCatalog()">🔄 Refresh</button>
     </div>
 
     <small id="qb-csv-status" hidden></small>
