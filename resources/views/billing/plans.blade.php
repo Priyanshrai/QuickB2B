@@ -5,10 +5,11 @@
     @php
         $host = request('host');
         $shopDomain = Auth::user()->getDomain()->toNative();
+        $storeHandle = explode('.', $shopDomain)[0];
         $homeUrl = URL::tokenRoute('home', compact('host'));
         $appHandle = config('shopify-app.app_handle', 'quick-order-page-1');
-        $planPageUrl = "https://admin.shopify.com/store/{$shopDomain}/charges/{$appHandle}/pricing_plans";
-        $billingUrl = "https://admin.shopify.com/store/{$shopDomain}/settings/billing";
+        $planPageUrl = "https://admin.shopify.com/store/{$storeHandle}/charges/{$appHandle}/pricing_plans";
+        $billingUrl = "https://admin.shopify.com/store/{$storeHandle}/settings/billing";
         $hasActivePlan = (bool) Auth::user()->plan_id;
         $quickPage = \App\Models\QuickOrderPage::where('user_id', Auth::id())->first();
     @endphp
@@ -48,12 +49,12 @@
 
                             @if ($hasActivePlan)
                                 <s-badge tone="success" size="large">✅ Active</s-badge>
-                                <s-button variant="secondary" onclick="location.href='{{ $billingUrl }}'">
+                                <s-button variant="secondary" onclick="window.top.location.href='{{ $billingUrl }}'">
                                     Manage Subscription
                                 </s-button>
                                 </s-button>
                             @else
-                                <s-button variant="primary" size="large" onclick="location.href='{{ $planPageUrl }}'">
+                                <s-button variant="primary" size="large" onclick="window.top.location.href='{{ $planPageUrl }}'">
                                     Start 7-Day Free Trial →
                                 </s-button>
                             @endif
