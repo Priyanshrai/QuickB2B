@@ -558,37 +558,6 @@ window.qbHasImages = @json($hasImages ?? false);
         }, 5000);
     }
 
-    // ─── Manual catalog refresh ──────────────────────────────────
-
-    window.refreshCatalog = async function() {
-        if (!confirm('Update product list from your store? Takes about a minute.')) return;
-
-        var btn = document.getElementById('qb-btn-refresh');
-        if (btn) { btn.disabled = true; btn.textContent = 'Refreshing...'; }
-
-        // Hide table, show progress
-        document.querySelector('#qb-table tbody').innerHTML =
-            '<tr><td colspan="5">Starting catalog refresh...</td></tr>';
-
-        var resp = await fetch('/apps/quick-order/api/products/refresh', { method: 'POST' });
-        var data = await resp.json();
-
-        if (data.status === 'already_running') {
-            alert('Catalog refresh is already in progress (' + data.percent + '% done). Please wait.');
-            pollCatalogStatus(function() { loadProducts(); if (btn) { btn.disabled = false; btn.textContent = 'Refresh'; } });
-            return;
-        }
-
-        if (data.status === 'started') {
-            pollCatalogStatus(function() {
-                loadProducts();
-                if (btn) { btn.disabled = false; btn.textContent = 'Refresh'; }
-            });
-        } else {
-            if (btn) { btn.disabled = false; btn.textContent = 'Refresh'; }
-        }
-    };
-
     // ─── Select all / Deselect all visible ──────────────────────
 
     window.selectAllVisible = async function() {

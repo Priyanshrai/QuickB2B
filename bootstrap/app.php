@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'webhook/*',
             'webhooks',
             'apps/quick-order/api/*',
+            'catalog/refresh',
         ]);
 
         $middleware->alias([

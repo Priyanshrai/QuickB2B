@@ -258,15 +258,19 @@ class QuickOrderController extends Controller
     {
         $shop = Auth::user();
         if (!$shop) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return response()->json(['status' => 'idle', 'percent' => 0]);
         }
 
         $shopDomain = $shop->getDomain()->toNative();
         $progressPath = "quickb2b/{$shopDomain}/progress.json";
 
+        $default = ['status' => 'idle', 'percent' => 0];
         if (!Storage::exists($progressPath)) {
-            return response()->json(['status' => 'idle', 'percent' => 0]);
+            return response()->json($default);
         }
+
+        $data = json_decode(Storage::get($progressPath), true) ?: $default;
+        return response()->json($data);
 
         return response()->json(
             json_decode(Storage::get($progressPath), true)

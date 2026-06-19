@@ -117,24 +117,84 @@
                     btn.setAttribute('loading', '');
                     btn.disabled = true;
                     banner.style.display = 'block';
-                    banner.textContent = '⏳ Starting catalog refresh...';
 
                     try {
-                        var resp = await fetch('/apps/quick-order/api/products/refresh', { method: 'POST' });
+                        var resp = await fetch('/catalog/refresh', { method: 'POST' });
                         var data = await resp.json();
                         if (data.status === 'already_running') {
                             banner.setAttribute('tone', 'warning');
-                            banner.textContent = '⚠️ ' + data.message;
+                            banner.textContent = '⏳ ' + data.message;
+                            pollCatalogProgress(banner);
+                            btn.removeAttribute('loading');
+                            btn.disabled = false;
+                            return;
                         } else if (data.status === 'started') {
-                            banner.setAttribute('tone', 'success');
-                            banner.textContent = '✅ Catalog refresh started! It may take a few minutes.';
+                            banner.setAttribute('tone', 'info');
+                            banner.textContent = '⏳ Catalog refresh started...';
+                            pollCatalogProgress(banner);
                         }
                     } catch (e) {
                         banner.setAttribute('tone', 'critical');
-                        banner.textContent = '❌ Failed to start refresh. Please try again.';
+                        banner.textContent = '❌ Failed to start refresh.';
                     }
                     btn.removeAttribute('loading');
                     btn.disabled = false;
+                }
+
+                function pollCatalogProgress(banner) {
+                    var attempts = 0;
+                    var statusLabels = {
+                        starting:    'Starting bulk operation...',
+                        querying:    'Querying Shopify for products...',
+                        processing:  'Processing product data...',
+                        downloading: 'Downloading catalog data...',
+                        complete:    'Done!',
+                        failed:      'Refresh failed.',
+                        idle:        'Waiting to start...'
+                    };
+
+                    function updateBanner(s) {
+                        if (!s || typeof s !== 'object') return;
+                        var pct   = parseInt(s.percent) || 0;
+                        var st    = s.status || '';
+                        var label = statusLabels[st] || (st ? st.charAt(0).toUpperCase() + st.slice(1) : 'Working...');
+                        var recs  = s.records ? s.records : '';
+
+                        if (st === 'complete') {
+                            clearInterval(interval);
+                            banner.setAttribute('tone', 'success');
+                            banner.textContent = '✅ Done! ' + (recs || '') + ' products refreshed.';
+                        } else if (st === 'failed') {
+                            clearInterval(interval);
+                            banner.setAttribute('tone', 'critical');
+                            banner.textContent = '❌ ' + (s.error || 'Unknown error');
+                        } else if (st === 'idle') {
+                            // Keep waiting
+                        } else if (st) {
+                            banner.setAttribute('tone', 'info');
+                            banner.textContent = '⏳ ' + label + ' (' + pct + '%)';
+                        }
+                    }
+
+                    var interval = setInterval(async function() {
+                        attempts++;
+                        if (attempts > 120) {
+                            clearInterval(interval);
+                            banner.setAttribute('tone', 'warning');
+                            banner.textContent = '⏰ Taking longer than expected. Check back later.';
+                            return;
+                        }
+                        try {
+                            var resp = await fetch('/catalog/status');
+                            if (!resp.ok) return;
+                            var text = await resp.text();
+                            if (!text) return;
+                            var s = JSON.parse(text);
+                            updateBanner(s);
+                        } catch (e) {
+                            // Silently retry
+                        }
+                    }, 5000);
                 }
             </script>
 

@@ -142,6 +142,12 @@ Route::middleware(['verify.shopify'])->group(function () {
         ->name('settings.index');
     Route::post('/settings', [\App\Http\Controllers\SettingsController::class, 'save'])
         ->name('settings.save');
+
+    // Catalog refresh (admin-side)
+    Route::post('/catalog/refresh', [\App\Http\Controllers\QuickOrderController::class, 'refreshProducts'])
+        ->name('catalog.refresh');
+    Route::get('/catalog/status', [\App\Http\Controllers\QuickOrderController::class, 'productsStatus'])
+        ->name('catalog.status');
 });
 
 /*
