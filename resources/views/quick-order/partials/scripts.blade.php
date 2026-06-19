@@ -332,7 +332,7 @@ window.qbHasImages = @json($hasImages ?? false);
         var count = Object.keys(cartItems).length;
         var info = document.getElementById('qb-selected-info');
         if (info) {
-            info.textContent = count > 0 ? count + ' product(s) selected' : 'All products included (qty=1)';
+            info.textContent = count > 0 ? count + ' product(s) selected' : 'All products included (qty=' + (minQty || 1) + ')';
         }
         var el = document.getElementById('qb-cart-count');
         if (el) el.textContent = count;
@@ -427,7 +427,7 @@ window.qbHasImages = @json($hasImages ?? false);
         // ── Confirm "Add All" with min qty ──────────────────────
         if (!useSelected && minQty > 1 && items.length > 0) {
             var msg = 'Add ' + items.length + ' product(s) to cart?\n\n'
-                + 'Default quantity: ' + minQty + ' per item\n'
+                + 'Min Qty: ' + minQty + ' per item\n'
                 + 'Total items in cart: ' + (items.length * minQty) + '\n\n'
                 + 'Click OK to continue or Cancel to adjust quantities.';
             if (!confirm(msg)) {

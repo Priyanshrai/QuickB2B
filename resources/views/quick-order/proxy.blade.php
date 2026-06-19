@@ -74,7 +74,7 @@
         <button id="qb-btn-permalink" onclick="smartCart('permalink')">Add to Cart</button>
         <button id="qb-clear-cart" onclick="clearShopifyCart()" class="btn-danger">Clear Shopify Cart</button>
     </div>
-    <p id="qb-selected-info" style="text-align:center;font-size:12px;color:#6d7175;margin-top:4px">All products included (qty=1)</p>
+    <p id="qb-selected-info" style="text-align:center;font-size:12px;color:#6d7175;margin-top:4px">All products included (qty={{ $settings['min_qty'] ?? 1 }})</p>
 
 </main>
 
