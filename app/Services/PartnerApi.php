@@ -20,6 +20,11 @@ class PartnerApi
         $this->apiVersion = '2026-04';
         $this->appGid     = config('shopify-app.partner_api.app_gid', env('PARTNER_APP_GID'));
 
+        // Partner API uses "partners" GID namespace, not "shopify"
+        if ($this->appGid && str_starts_with($this->appGid, 'gid://shopify/')) {
+            $this->appGid = str_replace('gid://shopify/', 'gid://partners/', $this->appGid);
+        }
+
         Log::debug('[PartnerApi::construct] Credentials loaded', [
             'org_id'      => $this->orgId ?: '(empty)',
             'token_len'   => strlen($this->token ?: ''),
