@@ -358,7 +358,7 @@ resources/views/
 ## 📞 Support
 
 - **Documentation**: Help page inside the app (`/help`)
-- **Email**: `support@quickb2b.com`
+- **Email**: `pixiestoresupport@gmail.com`
 - **Setup Guide**: Dashboard → Create Page → Done!
 
 ---

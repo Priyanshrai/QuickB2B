@@ -113,7 +113,7 @@
                             <s-text variant="bodyMd">📣 <strong>Any complaint?</strong> We take feedback seriously — good or bad, we want it all.</s-text>
                         </s-stack>
                         <s-stack direction="inline" gap="base" alignItems="center">
-                            <s-text variant="headingSm" fontWeight="bold">✉️ support@pixiestore.in</s-text>
+                            <s-text variant="headingSm" fontWeight="bold">✉️ pixiestoresupport@gmail.com</s-text>
                             <s-button variant="secondary" size="small" onclick="copySupportEmail()" id="btn-copy-email">📋 Copy</s-button>
                         </s-stack>
                         <s-paragraph tone="subdued" variant="bodySm">
@@ -121,7 +121,7 @@
                         </s-paragraph>
                         <script>
                             function copySupportEmail() {
-                                navigator.clipboard.writeText('support@pixiestore.in').then(function() {
+                                navigator.clipboard.writeText('pixiestoresupport@gmail.com').then(function() {
                                     var btn = document.getElementById('btn-copy-email');
                                     btn.textContent = '✅ Copied!';
                                     setTimeout(function() { btn.textContent = '📋 Copy'; }, 2000);

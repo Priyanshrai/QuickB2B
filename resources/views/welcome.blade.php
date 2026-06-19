@@ -154,14 +154,14 @@
                                 Questions, feature ideas, or something not working? We're all ears!
                             </s-text>
                             <s-stack direction="inline" gap="base" alignItems="center">
-                                <s-text variant="bodySm" fontWeight="bold">✉️ support@pixiestore.in</s-text>
+                                <s-text variant="bodySm" fontWeight="bold">✉️ pixiestoresupport@gmail.com</s-text>
                                 <s-button variant="secondary" size="small" onclick="copyDashEmail()" id="btn-copy-dash">📋 Copy</s-button>
                             </s-stack>
                         </s-stack>
                         <s-badge tone="success">Fast Response ⚡</s-badge>
                         <script>
                             function copyDashEmail() {
-                                navigator.clipboard.writeText('support@pixiestore.in').then(function() {
+                                navigator.clipboard.writeText('pixiestoresupport@gmail.com').then(function() {
                                     var btn = document.getElementById('btn-copy-dash');
                                     btn.textContent = '✅ Copied!';
                                     setTimeout(function() { btn.textContent = '📋 Copy'; }, 2000);
