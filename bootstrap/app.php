@@ -20,7 +20,6 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'auth.webhook.gdpr'     => \App\Http\Middleware\AuthWebhookGdpr::class,
-            'billing.proxy'         => \App\Http\Middleware\CheckBillingProxy::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -10,7 +10,7 @@ Route::get('/privacy', function () {
 });
 
 // App Proxy — storefront Quick Order page + API (signed by Shopify, public)
-Route::middleware(['auth.proxy', 'throttle:120,1', 'billing.proxy'])->group(function () {
+Route::middleware(['auth.proxy', 'throttle:120,1', 'billable'])->group(function () {
     Route::get('/apps/quick-order/sample-csv', function () {
         return response()->download(public_path('sample-order.csv'));
     });
@@ -72,14 +72,14 @@ Route::middleware(['auth.proxy', 'throttle:120,1', 'billing.proxy'])->group(func
     Route::get('/apps/quick-order/api/draft-order/status', [\App\Http\Controllers\QuickOrderController::class, 'draftOrderStatus']);
 });
 
-// Home — Dashboard
+// Home — Dashboard (requires active subscription)
 Route::get('/', function () {
     return view('welcome');
-})->middleware(['verify.shopify'])->name('home');
+})->middleware(['verify.shopify', 'billable'])->name('home');
 
-// Billing — Plans page
+// Billing — Plans page (always accessible, no billable check)
 Route::middleware(['verify.shopify'])->group(function () {
-    Route::get('/plans', function () {
+    Route::get('/subscription', function () {
         return view('billing.plans');
     })->name('plans');
 
@@ -88,7 +88,7 @@ Route::middleware(['verify.shopify'])->group(function () {
         try {
             $charge = app(\Osiset\ShopifyApp\Actions\CreateRecurringCharge::class);
             $charge($shop->getId(), [
-                'name' => 'Pro Plan',
+                'name' => 'Pro',
                 'price' => 9.99,
                 'trial_days' => 7,
                 'test' => config('shopify-app.billing.test', true),
@@ -120,6 +120,10 @@ Route::middleware(['verify.shopify'])->group(function () {
             return back()->with('error', 'Could not cancel subscription. Please try again.');
         }
     })->name('plans.cancel');
+});
+
+// ── All other Admin routes (require active subscription) ────────
+Route::middleware(['verify.shopify', 'billable'])->group(function () {
 
     // One-click setup: create Quick Order page + add to navigation menu
     Route::post('/setup/create-page', [\App\Http\Controllers\SetupController::class, 'createPageAndMenu'])

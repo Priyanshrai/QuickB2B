@@ -6,7 +6,7 @@
         $host = request('host');
         $shopDomain = Auth::user()->getDomain()->toNative();
         $homeUrl = URL::tokenRoute('home', compact('host'));
-        $upgradeUrl = '/billing/1?host=' . $host . '&shop=' . $shopDomain;
+        $subscribeUrl = '/billing/1?host=' . $host . '&shop=' . $shopDomain;
         $hasActivePlan = Auth::user()->plan_id || Auth::user()->isFreemium() || Auth::user()->isGrandfathered();
         $quickPage = \App\Models\QuickOrderPage::where('user_id', Auth::id())->first();
     @endphp
@@ -50,7 +50,7 @@
                                     Cancel Subscription
                                 </s-button>
                             @else
-                                <s-button variant="primary" size="large" onclick="location.href='{{ $upgradeUrl }}'">
+                                <s-button variant="primary" size="large" onclick="location.href='{{ $subscribeUrl }}'">
                                     Start 7-Day Free Trial →
                                 </s-button>
                             @endif
