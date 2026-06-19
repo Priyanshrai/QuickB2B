@@ -79,7 +79,10 @@ class PartnerApi
         ]);
 
         try {
-            $response = Http::withToken($this->token)
+            $response = Http::withHeaders([
+                'X-Shopify-Access-Token' => $this->token,
+                'Content-Type' => 'application/json',
+            ])
                 ->timeout(10)
                 ->connectTimeout(5)
                 ->post($url, [
@@ -178,28 +181,43 @@ class PartnerApi
     }
 
     /**
-     * Build Shopify GID from shop domain.
-     * Requires shopify_gid column or falls back to reconstructing.
+     * Build Shopify GID from shop.
+     * Uses Shopify Admin API to get the real shop ID.
      */
     protected function getShopGid($shop): ?string
     {
         Log::debug('[PartnerApi::getShopGid] Building GID', [
-            'shop'          => $shop->getDomain()->toNative(),
-            'has_getId'     => method_exists($shop, 'getId'),
+            'shop' => $shop->getDomain()->toNative(),
         ]);
 
-        // If the model has shopify_gid from package
-        if (method_exists($shop, 'getId') && $shop->getId()) {
-            $rawId = $shop->getId()->toNative();
-            $gid = 'gid://shopify/Shop/' . $rawId;
-            Log::debug('[PartnerApi::getShopGid] GID built', [
-                'raw_id' => $rawId,
-                'gid'    => $gid,
+        try {
+            // Use shop's own API to query its real Shopify ID
+            $response = $shop->api()->rest('GET', '/admin/api/shop.json');
+
+            Log::debug('[PartnerApi::getShopGid] Shopify /admin/api/shop.json response', [
+                'status' => $response['status'] ?? 'unknown',
             ]);
-            return $gid;
+
+            $shopId = $response['body']['shop']['id'] ?? null;
+
+            if ($shopId) {
+                $gid = "gid://shopify/Shop/{$shopId}";
+                Log::debug('[PartnerApi::getShopGid] GID built from Admin API', [
+                    'shopify_id' => $shopId,
+                    'gid'        => $gid,
+                ]);
+                return $gid;
+            }
+
+            Log::warning('[PartnerApi::getShopGid] No ID in shop API response', [
+                'response' => $response,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('[PartnerApi::getShopGid] Admin API call failed', [
+                'error' => $e->getMessage(),
+            ]);
         }
 
-        // Fallback: query via GraphQL (rare)
         Log::warning('PartnerApi: Cannot determine shop GID', [
             'shop' => $shop->getDomain()->toNative(),
         ]);
