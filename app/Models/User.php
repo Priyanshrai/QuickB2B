@@ -24,6 +24,7 @@ class User extends Authenticatable implements IShopModel
         'name',
         'email',
         'password',
+        'plan_id',
     ];
 
     /**
