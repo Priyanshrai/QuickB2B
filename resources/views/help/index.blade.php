@@ -100,17 +100,23 @@
             </s-section>
 
             {{-- ── Contact ── --}}
-            <s-section heading="📧 Need More Help?">
+            <s-section heading="📧 Get In Touch">
                 <s-box padding="large-200" background="base" border="base" borderRadius="large-100">
-                    <s-stack gap="base">
-                        <s-paragraph tone="subdued">
-                            Can't find what you're looking for? Our support team is here to help.
+                    <s-stack gap="large-100">
+                        <s-paragraph>
+                            We'd love to hear from you! Whether you need help, have a feature idea, or want to report something — drop us an email.
                         </s-paragraph>
-                        <s-button variant="primary" onclick="location.href='mailto:support@quickb2b.com'">
-                            📧 Contact Support
+                        <s-stack gap="base">
+                            <s-text variant="bodyMd">💡 <strong>Feature Request?</strong> Tell us what would make QuickB2B even better for your store.</s-text>
+                            <s-text variant="bodyMd">🐛 <strong>Found a bug?</strong> Let us know what went wrong and we'll fix it fast.</s-text>
+                            <s-text variant="bodyMd">❓ <strong>Need help?</strong> Stuck somewhere? We'll guide you through it.</s-text>
+                            <s-text variant="bodyMd">📣 <strong>Any complaint?</strong> We take feedback seriously — good or bad, we want it all.</s-text>
+                        </s-stack>
+                        <s-button variant="primary" size="large" onclick="location.href='mailto:support@pixiestore.in'">
+                            📧 support@pixiestore.in
                         </s-button>
                         <s-paragraph tone="subdued" variant="bodySm">
-                            We typically respond within 24 hours.
+                            ⚡ We typically respond within a few hours. No bots, real humans!
                         </s-paragraph>
                     </s-stack>
                 </s-box>
