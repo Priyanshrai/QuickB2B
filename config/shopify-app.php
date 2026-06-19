@@ -150,6 +150,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Shopify App Handle
+    |--------------------------------------------------------------------------
+    |
+    | Your app's unique handle, used for Shopify App Pricing plan page URLs.
+    | Format: https://admin.shopify.com/store/{shop}/charges/{handle}/pricing_plans
+    |
+    */
+
+    'app_handle' => env('SHOPIFY_APP_HANDLE', ''),
+
+    /*
+    |--------------------------------------------------------------------------
     | Shopify API Version
     |--------------------------------------------------------------------------
     |

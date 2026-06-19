@@ -10,7 +10,7 @@ Route::get('/privacy', function () {
 });
 
 // App Proxy — storefront Quick Order page + API (signed by Shopify, public)
-Route::middleware(['auth.proxy', 'throttle:120,1', 'billable'])->group(function () {
+Route::middleware(['auth.proxy', 'throttle:120,1', 'check.subscription'])->group(function () {
     Route::get('/apps/quick-order/sample-csv', function () {
         return response()->download(public_path('sample-order.csv'));
     });
@@ -72,58 +72,24 @@ Route::middleware(['auth.proxy', 'throttle:120,1', 'billable'])->group(function 
     Route::get('/apps/quick-order/api/draft-order/status', [\App\Http\Controllers\QuickOrderController::class, 'draftOrderStatus']);
 });
 
-// Home — Dashboard (requires active subscription)
+// Home — Dashboard (saves plan_handle from Shopify redirect)
 Route::get('/', function () {
+    $shop = Auth::user();
+    if ($shop && $planHandle = request('plan_handle')) {
+        $shop->update(['plan_id' => $planHandle]);
+    }
     return view('welcome');
-})->middleware(['verify.shopify', 'billable'])->name('home');
+})->middleware(['verify.shopify'])->name('home');
 
-// Billing — Plans page (always accessible, no billable check)
+// Billing — Plans page (always accessible, no subscription check)
 Route::middleware(['verify.shopify'])->group(function () {
     Route::get('/subscription', function () {
         return view('billing.plans');
     })->name('plans');
-
-    Route::get('/plans/subscribe', function (Request $request) {
-        $shop = Auth::user();
-        try {
-            $charge = app(\Osiset\ShopifyApp\Actions\CreateRecurringCharge::class);
-            $charge($shop->getId(), [
-                'name' => 'Pro',
-                'price' => 9.99,
-                'trial_days' => 7,
-                'test' => config('shopify-app.billing.test', true),
-            ]);
-            return redirect()->to($charge->getConfirmationUrl());
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Plan subscribe failed', [
-                'shop' => $shop->getDomain()->toNative(),
-                'error' => $e->getMessage(),
-            ]);
-            return back()->with('error', 'Could not create subscription. Please try again.');
-        }
-    })->name('plans.subscribe');
-
-    Route::get('/plans/cancel', function (Request $request) {
-        $shop = Auth::user();
-        try {
-            $cancelPlan = app(\Osiset\ShopifyApp\Actions\CancelCurrentPlan::class);
-            $cancelPlan($shop->getId());
-            $shop->plan_id = null;
-            $shop->save();
-            return redirect()->route('plans', ['host' => $request->get('host')])
-                ->with('success', 'Subscription cancelled. You are now on the Free plan.');
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Plan cancel failed', [
-                'shop' => $shop->getDomain()->toNative(),
-                'error' => $e->getMessage(),
-            ]);
-            return back()->with('error', 'Could not cancel subscription. Please try again.');
-        }
-    })->name('plans.cancel');
 });
 
 // ── All other Admin routes (require active subscription) ────────
-Route::middleware(['verify.shopify', 'billable'])->group(function () {
+Route::middleware(['verify.shopify', 'check.subscription'])->group(function () {
 
     // One-click setup: create Quick Order page + add to navigation menu
     Route::post('/setup/create-page', [\App\Http\Controllers\SetupController::class, 'createPageAndMenu'])
