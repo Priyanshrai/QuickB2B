@@ -119,7 +119,7 @@ class PartnerApi
     {
         // If the model has shopify_gid from package
         if (method_exists($shop, 'getId') && $shop->getId()) {
-            return 'gid://shopify/Shop/' . $shop->getId();
+            return 'gid://shopify/Shop/' . $shop->getId()->toNative();
         }
 
         // Fallback: query via GraphQL (rare)
