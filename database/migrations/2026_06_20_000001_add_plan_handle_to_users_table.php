@@ -9,6 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
+            // Drop old foreign key + integer column, replace with string
+            $table->dropForeign(['plan_id']);
             $table->string('plan_id')->nullable()->change();
         });
     }
@@ -17,6 +19,7 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             $table->unsignedBigInteger('plan_id')->nullable()->change();
+            $table->foreign('plan_id')->references('id')->on('plans');
         });
     }
 };
