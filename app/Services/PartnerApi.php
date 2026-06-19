@@ -56,10 +56,19 @@ class PartnerApi
         Log::debug('[PartnerApi::getActiveSubscription] STEP 2: Credentials OK, building API call');
 
         $query = <<<'GQL'
-            query ActiveSubscription($appId: ID!, $shopId: ID!) {
-                activeSubscription(appId: $appId, shopId: $shopId) {
-                    items {
-                        handle
+            query AppEvents($appId: ID!, $shopId: ID!) {
+                app(id: $appId) {
+                    events(shopId: $shopId, first: 1, types: [SUBSCRIPTION_CHARGE_ACTIVATED]) {
+                        edges {
+                            node {
+                                ... on SubscriptionChargeActivated {
+                                    charge {
+                                        id
+                                        name
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -109,22 +118,23 @@ class PartnerApi
                 'data' => $data,
             ]);
 
-            $subscription = $data['data']['activeSubscription'] ?? null;
-
-            Log::debug('[PartnerApi::getActiveSubscription] STEP 6: Subscription object', [
-                'subscription' => $subscription,
+            $events = $data['data']['app']['events']['edges'] ?? [];
+            Log::debug('[PartnerApi::getActiveSubscription] STEP 6: Events found', [
+                'count' => count($events),
             ]);
 
-            // null = no active subscription (cancelled, frozen, etc.)
-            if (!$subscription) {
-                Log::info('[PartnerApi::getActiveSubscription] RESULT: No active subscription (null)');
+            // No SUBSCRIPTION_CHARGE_ACTIVATED events = no active subscription
+            if (empty($events)) {
+                Log::info('[PartnerApi::getActiveSubscription] RESULT: No active subscription (no activation events)');
                 return null;
             }
 
-            $handle = $subscription['items'][0]['handle'] ?? null;
+            $charge = $events[0]['node']['charge'] ?? null;
+            $handle = $charge['name'] ?? null;
 
-            Log::info('[PartnerApi::getActiveSubscription] RESULT: Found handle', [
-                'handle' => $handle,
+            Log::info('[PartnerApi::getActiveSubscription] RESULT: Found active charge', [
+                'charge_id'   => $charge['id'] ?? 'null',
+                'charge_name' => $handle,
             ]);
 
             return $handle;
@@ -201,7 +211,7 @@ class PartnerApi
             $shopId = $response['body']['shop']['id'] ?? null;
 
             if ($shopId) {
-                $gid = "gid://shopify/Shop/{$shopId}";
+                $gid = "gid://partners/Shop/{$shopId}";
                 Log::debug('[PartnerApi::getShopGid] GID built from Admin API', [
                     'shopify_id' => $shopId,
                     'gid'        => $gid,
