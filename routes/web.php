@@ -22,6 +22,22 @@ Route::middleware(['auth.proxy', 'throttle:120,1'])->group(function () {
         }
         $settings = \App\Models\QuickOrderSetting::forShop(Auth::id());
 
+        // Check if cache actually has images (not just setting enabled)
+        $hasImages = false;
+        if ($settings['show_images'] ?? false) {
+            $cachePath = 'quickb2b/' . $shop->getDomain()->toNative() . '/products.json';
+            if (Storage::exists($cachePath)) {
+                $sample = json_decode(Storage::get($cachePath), true) ?: [];
+                // Check first 50 products for any image_url
+                foreach (array_slice($sample, 0, 50) as $p) {
+                    if (!empty($p['image_url'])) {
+                        $hasImages = true;
+                        break;
+                    }
+                }
+            }
+        }
+
         // Get shop currency (cached in settings, fetched once on first load)
         $currency = $settings['_currency'] ?? null;
         if (!$currency) {
@@ -42,6 +58,7 @@ Route::middleware(['auth.proxy', 'throttle:120,1'])->group(function () {
                 'shopDomain' => $shop->getDomain()->toNative(),
                 'settings'   => $settings,
                 'currency'   => $currency ?: 'USD',
+                'hasImages'  => $hasImages,
             ])
         )->header('Content-Type', 'application/liquid');
     })->name('proxy.quick-order');

@@ -27,13 +27,13 @@ class QuickOrderSetting extends Model
     public static function defaults(): array
     {
         return [
-            'min_qty'    => null,
-            'max_qty'    => null,
-            'hide_oos'   => true,
-            'hide_sku'   => false,
-            'hide_stock' => false,
-            'hide_tags'  => [],
-            'image_size' => null,
+            'min_qty'     => null,
+            'max_qty'     => null,
+            'hide_oos'    => true,
+            'hide_sku'    => false,
+            'hide_stock'  => false,
+            'hide_tags'   => [],
+            'show_images' => false,
         ];
     }
 

@@ -4,6 +4,7 @@
 // ─── QuickB2B Settings (from server) ──────────────────────────
 window.qbSettings = @json($settings);
 window.qbCurrency = @json($currency ?? 'USD');
+window.qbHasImages = @json($hasImages ?? false);
 </script>
 
 <script>
@@ -19,7 +20,7 @@ window.qbCurrency = @json($currency ?? 'USD');
 
     // Shorthand
     var S = window.qbSettings || {};
-    var showImage  = !!(S.image_size);
+    var showImage  = !!window.qbHasImages;
     var hideSku    = !!S.hide_sku;
     var hideStock  = !!S.hide_stock;
     var minQty     = S.min_qty ? parseInt(S.min_qty) : 1;
@@ -218,7 +219,7 @@ window.qbCurrency = @json($currency ?? 'USD');
 
             var imgHtml = '';
             if (showImage && p.image_url) {
-                imgHtml = '<td class="qb-col-img"><img src="' + escapeHtml(p.image_url) + '" width="' + S.image_size + '" height="' + S.image_size + '" style="object-fit:contain" loading="lazy" alt=""></td>';
+                imgHtml = '<td class="qb-col-img"><img src="' + escapeHtml(p.image_url) + '&width=100&height=100" width="100" height="100" style="object-fit:contain" loading="lazy" alt=""></td>';
             } else if (showImage) {
                 imgHtml = '<td class="qb-col-img"></td>';
             }

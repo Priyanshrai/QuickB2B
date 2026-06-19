@@ -32,8 +32,8 @@ class SettingsController extends Controller
             'hide_oos'   => 'boolean',
             'hide_sku'   => 'boolean',
             'hide_stock' => 'boolean',
-            'hide_tags'  => 'nullable|string|max:500',
-            'image_size' => 'nullable|in:,100x100,200x200,300x300',
+            'hide_tags'   => 'nullable|string|max:500',
+            'show_images' => 'boolean',
         ]);
 
         // Normalize hide_tags: comma-separated string → array
@@ -48,7 +48,7 @@ class SettingsController extends Controller
             'hide_sku'   => (bool) ($validated['hide_sku'] ?? false),
             'hide_stock' => (bool) ($validated['hide_stock'] ?? false),
             'hide_tags'  => array_values($tagsArray),
-            'image_size' => $validated['image_size'] ?: null,
+            'show_images' => (bool) ($validated['show_images'] ?? false),
         ];
 
         QuickOrderSetting::updateOrCreate(

@@ -67,17 +67,13 @@
                         {{-- ── Product Images ── --}}
                         <s-section heading="🖼️ Product Images">
                             <s-paragraph tone="subdued" style="margin-bottom:12px;">
-                                Show product thumbnails in the table.
+                                Show product thumbnails (100×100) in the table.
                                 <strong>⚠️ Enabling this may slow down the page</strong> for stores with many products.
                             </s-paragraph>
-                            <s-select name="image_size" label="Image Size"
-                                value="{{ $settings['image_size'] ?? '' }}"
-                                help-text="Choose an image size, or leave empty to hide images.">
-                                <option value="">No images (fastest)</option>
-                                <option value="100x100">Small — 100×100</option>
-                                <option value="200x200">Medium — 200×200</option>
-                                <option value="300x300">Large — 300×300</option>
-                            </s-select>
+                            <s-checkbox name="show_images" value="1" label="Show product images"
+                                {{ ($settings['show_images'] ?? false) ? 'checked' : '' }}
+                                help-text="Display 100×100 product thumbnails in the Quick Order table.">
+                            </s-checkbox>
                         </s-section>
 
                         {{-- ── Tag Filtering ── --}}

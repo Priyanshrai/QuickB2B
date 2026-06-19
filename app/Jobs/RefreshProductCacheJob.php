@@ -36,10 +36,12 @@ class RefreshProductCacheJob implements ShouldQueue
                 return;
             }
 
-            // Step 1: Start bulk operation — query variants with product info nested
+            // Step 1: Start bulk operation — with optional images
             $this->setProgress('querying', 10);
 
-            $productQuery = <<<'GQL'
+            $fetchImages = (bool) (\App\Models\QuickOrderSetting::forShop($shop->id)['show_images'] ?? false);
+
+            $productQuery = '
                 {
                     productVariants {
                         edges {
@@ -50,21 +52,24 @@ class RefreshProductCacheJob implements ShouldQueue
                                 price
                                 inventoryQuantity
                                 inventoryPolicy
-                                image { id url altText }
                                 product {
-                                    id title tags
+                                    id title tags'
+                    . ($fetchImages
+                        ? '
                                     featuredMedia {
                                         ... on MediaImage {
                                             image { url }
                                         }
-                                    }
+                                    }'
+                        : '')
+                    . '
                                     collections { edges { node { title } } }
                                 }
                             }
                         }
                     }
                 }
-            GQL;
+            ';
 
             $data = ShopifyGraphQL::query($shop, '
                 mutation bulkOperationRunQuery($query: String!) {
@@ -147,15 +152,6 @@ class RefreshProductCacheJob implements ShouldQueue
                     continue;
                 }
 
-                // Featured media line — __parentId points to PRODUCT
-                if ($parentId && str_contains($parentId, '/Product/') && !str_contains($objId, '/ProductVariant/')) {
-                    $imgUrl = $obj['image']['url'] ?? '';
-                    if ($imgUrl) {
-                        $productImages[$parentId] = $imgUrl;
-                    }
-                    continue;
-                }
-
                 // Only variant lines
                 if (!$objId || !str_contains($objId, '/ProductVariant/')) {
                     continue;
@@ -167,6 +163,12 @@ class RefreshProductCacheJob implements ShouldQueue
 
                 if ($productId) {
                     $variantToProduct[$variantId] = $productId;
+                }
+
+                // Extract featured image URL — inline inside product (not a separate JSONL line)
+                $featuredImgUrl = $product['featuredMedia']['image']['url'] ?? '';
+                if ($featuredImgUrl && $productId) {
+                    $productImages[$productId] = $featuredImgUrl;
                 }
 
                 $rawTags = $product['tags'] ?? '';
