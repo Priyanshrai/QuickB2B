@@ -129,6 +129,26 @@ class QuickOrderController extends Controller
             return response()->json(['error' => 'No items provided'], 400);
         }
 
+        // ── Server-side min/max qty validation ──────────────────
+        $settings = \App\Models\QuickOrderSetting::forShop(Auth::id());
+        $minQty = $settings['min_qty'] ?? null;
+        $maxQty = $settings['max_qty'] ?? null;
+        if ($minQty || $maxQty) {
+            foreach ($items as $item) {
+                $qty = (int) ($item['qty'] ?? 0);
+                if ($minQty && $qty < $minQty) {
+                    return response()->json([
+                        'error' => "Minimum order quantity is {$minQty}. Some items have only {$qty}.",
+                    ], 422);
+                }
+                if ($maxQty && $qty > $maxQty) {
+                    return response()->json([
+                        'error' => "Maximum order quantity is {$maxQty}. Some items exceed this limit.",
+                    ], 422);
+                }
+            }
+        }
+
         // ── Server-side OOS filter against JSON catalog ──────────
         $filePath = "quickb2b/{$shopDomain}/products.json";
         $catalog = Storage::exists($filePath)
