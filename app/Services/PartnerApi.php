@@ -19,6 +19,19 @@ class PartnerApi
         $this->token      = config('shopify-app.partner_api.token', env('PARTNER_API_TOKEN'));
         $this->apiVersion = '2026-04';
         $this->appGid     = config('shopify-app.partner_api.app_gid', env('PARTNER_APP_GID'));
+
+        Log::debug('[PartnerApi::construct] Credentials loaded', [
+            'org_id'      => $this->orgId ?: '(empty)',
+            'token_len'   => strlen($this->token ?: ''),
+            'token_prefix'=> substr($this->token ?: '', 0, 10) . '...',
+            'app_gid'     => $this->appGid ?: '(empty)',
+            'source'      => [
+                'config_org'  => config('shopify-app.partner_api.org_id'),
+                'config_token_len' => strlen(config('shopify-app.partner_api.token') ?: ''),
+                'env_org'     => env('PARTNER_API_ORG_ID'),
+                'env_token_len' => strlen(env('PARTNER_API_TOKEN') ?: ''),
+            ],
+        ]);
     }
 
     /**
@@ -27,6 +40,10 @@ class PartnerApi
      */
     public function getActiveSubscription(string $shopGid): ?string
     {
+        Log::debug('[PartnerApi::getActiveSubscription] STEP 1: Starting', [
+            'shop_gid' => $shopGid,
+        ]);
+
         if (!$this->token || !$this->orgId || !$this->appGid) {
             Log::warning('PartnerApi: Missing credentials', [
                 'org_id' => (bool) $this->orgId,
@@ -35,6 +52,8 @@ class PartnerApi
             ]);
             return null;
         }
+
+        Log::debug('[PartnerApi::getActiveSubscription] STEP 2: Credentials OK, building API call');
 
         $query = <<<'GQL'
             query ActiveSubscription($appId: ID!, $shopId: ID!) {
@@ -46,17 +65,32 @@ class PartnerApi
             }
         GQL;
 
+        $url = "https://partners.shopify.com/{$this->orgId}/api/{$this->apiVersion}/graphql.json";
+        $variables = [
+            'appId'  => $this->appGid,
+            'shopId' => $shopGid,
+        ];
+
+        Log::debug('[PartnerApi::getActiveSubscription] STEP 3: Making HTTP request', [
+            'url'          => $url,
+            'app_gid'      => $this->appGid,
+            'shop_gid'     => $shopGid,
+            'token_prefix' => substr($this->token, 0, 8) . '...',
+        ]);
+
         try {
             $response = Http::withToken($this->token)
                 ->timeout(10)
                 ->connectTimeout(5)
-                ->post("https://partners.shopify.com/{$this->orgId}/api/{$this->apiVersion}/graphql.json", [
+                ->post($url, [
                     'query'     => $query,
-                    'variables' => [
-                        'appId'  => $this->appGid,
-                        'shopId' => $shopGid,
-                    ],
+                    'variables' => $variables,
                 ]);
+
+            Log::debug('[PartnerApi::getActiveSubscription] STEP 4: Response received', [
+                'status'  => $response->status(),
+                'body'    => $response->body(),
+            ]);
 
             if (!$response->successful()) {
                 Log::error('PartnerApi: HTTP error', [
@@ -67,14 +101,30 @@ class PartnerApi
             }
 
             $data = $response->json();
+
+            Log::debug('[PartnerApi::getActiveSubscription] STEP 5: Parsed JSON', [
+                'data' => $data,
+            ]);
+
             $subscription = $data['data']['activeSubscription'] ?? null;
+
+            Log::debug('[PartnerApi::getActiveSubscription] STEP 6: Subscription object', [
+                'subscription' => $subscription,
+            ]);
 
             // null = no active subscription (cancelled, frozen, etc.)
             if (!$subscription) {
+                Log::info('[PartnerApi::getActiveSubscription] RESULT: No active subscription (null)');
                 return null;
             }
 
-            return $subscription['items'][0]['handle'] ?? null;
+            $handle = $subscription['items'][0]['handle'] ?? null;
+
+            Log::info('[PartnerApi::getActiveSubscription] RESULT: Found handle', [
+                'handle' => $handle,
+            ]);
+
+            return $handle;
 
         } catch (ConnectionException $e) {
             Log::error('PartnerApi: Connection failed', ['error' => $e->getMessage()]);
@@ -88,14 +138,30 @@ class PartnerApi
      */
     public function syncShopSubscription($shop): bool
     {
+        Log::debug('[PartnerApi::syncShopSubscription] STEP 1: Starting sync', [
+            'shop'    => $shop->getDomain()->toNative(),
+            'plan_id' => $shop->plan_id,
+        ]);
+
         $shopGid = $this->getShopGid($shop);
         if (!$shopGid) {
+            Log::warning('[PartnerApi::syncShopSubscription] FAIL: No shop GID');
             return false;
         }
 
+        Log::debug('[PartnerApi::syncShopSubscription] STEP 2: Shop GID = ' . $shopGid);
+
         $handle = $this->getActiveSubscription($shopGid);
 
+        Log::debug('[PartnerApi::syncShopSubscription] STEP 3: API returned', [
+            'handle' => $handle,
+        ]);
+
         $shop->update(['plan_id' => $handle]);
+
+        Log::debug('[PartnerApi::syncShopSubscription] STEP 4: DB updated', [
+            'new_plan_id' => $handle,
+        ]);
 
         if ($handle) {
             Log::info('PartnerApi: Subscription active', [
@@ -117,9 +183,20 @@ class PartnerApi
      */
     protected function getShopGid($shop): ?string
     {
+        Log::debug('[PartnerApi::getShopGid] Building GID', [
+            'shop'          => $shop->getDomain()->toNative(),
+            'has_getId'     => method_exists($shop, 'getId'),
+        ]);
+
         // If the model has shopify_gid from package
         if (method_exists($shop, 'getId') && $shop->getId()) {
-            return 'gid://shopify/Shop/' . $shop->getId()->toNative();
+            $rawId = $shop->getId()->toNative();
+            $gid = 'gid://shopify/Shop/' . $rawId;
+            Log::debug('[PartnerApi::getShopGid] GID built', [
+                'raw_id' => $rawId,
+                'gid'    => $gid,
+            ]);
+            return $gid;
         }
 
         // Fallback: query via GraphQL (rare)
