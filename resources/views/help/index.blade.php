@@ -112,12 +112,22 @@
                             <s-text variant="bodyMd">❓ <strong>Need help?</strong> Stuck somewhere? We'll guide you through it.</s-text>
                             <s-text variant="bodyMd">📣 <strong>Any complaint?</strong> We take feedback seriously — good or bad, we want it all.</s-text>
                         </s-stack>
-                        <s-text variant="headingSm" fontWeight="bold">
-                            ✉️ <a href="mailto:support@pixiestore.in" target="_blank" rel="noopener noreferrer" style="color:var(--p-color-text-interactive);text-decoration:none;">support@pixiestore.in</a>
-                        </s-text>
+                        <s-stack direction="inline" gap="base" alignItems="center">
+                            <s-text variant="headingSm" fontWeight="bold">✉️ support@pixiestore.in</s-text>
+                            <s-button variant="secondary" size="small" onclick="copySupportEmail()" id="btn-copy-email">📋 Copy</s-button>
+                        </s-stack>
                         <s-paragraph tone="subdued" variant="bodySm">
                             ⚡ We typically respond within a few hours. No bots, real humans!
                         </s-paragraph>
+                        <script>
+                            function copySupportEmail() {
+                                navigator.clipboard.writeText('support@pixiestore.in').then(function() {
+                                    var btn = document.getElementById('btn-copy-email');
+                                    btn.textContent = '✅ Copied!';
+                                    setTimeout(function() { btn.textContent = '📋 Copy'; }, 2000);
+                                });
+                            }
+                        </script>
                     </s-stack>
                 </s-box>
             </s-section>

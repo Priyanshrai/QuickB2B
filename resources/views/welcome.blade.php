@@ -145,6 +145,33 @@
                 </s-stack>
             </s-section>
 
+            {{-- ───── Contact ───── --}}
+            <s-section heading="📧 Need Help or Have Feedback?">
+                <s-box padding="large-200" background="base" border="base" borderRadius="large-100">
+                    <s-stack direction="inline" gap="large-100" alignItems="center" wrap>
+                        <s-stack gap="base" style="flex:1;">
+                            <s-text variant="bodyMd">
+                                Questions, feature ideas, or something not working? We're all ears!
+                            </s-text>
+                            <s-stack direction="inline" gap="base" alignItems="center">
+                                <s-text variant="bodySm" fontWeight="bold">✉️ support@pixiestore.in</s-text>
+                                <s-button variant="secondary" size="small" onclick="copyDashEmail()" id="btn-copy-dash">📋 Copy</s-button>
+                            </s-stack>
+                        </s-stack>
+                        <s-badge tone="success">Fast Response ⚡</s-badge>
+                        <script>
+                            function copyDashEmail() {
+                                navigator.clipboard.writeText('support@pixiestore.in').then(function() {
+                                    var btn = document.getElementById('btn-copy-dash');
+                                    btn.textContent = '✅ Copied!';
+                                    setTimeout(function() { btn.textContent = '📋 Copy'; }, 2000);
+                                });
+                            }
+                        </script>
+                    </s-stack>
+                </s-box>
+            </s-section>
+
         </s-stack>
     </s-page>
 
