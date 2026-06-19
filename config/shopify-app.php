@@ -162,6 +162,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Partner API (for Shopify App Pricing subscription verification)
+    |--------------------------------------------------------------------------
+    |
+    | Used by App\Services\PartnerApi to query active subscriptions.
+    | Create a Partner API client at: partners.shopify.com/{org}/settings/partner_api_clients
+    | Requires "Manage apps" permission.
+    |
+    */
+
+    'partner_api' => [
+        'org_id'  => env('PARTNER_API_ORG_ID'),
+        'token'   => env('PARTNER_API_TOKEN'),
+        'app_gid' => env('PARTNER_APP_GID'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Shopify API Version
     |--------------------------------------------------------------------------
     |
