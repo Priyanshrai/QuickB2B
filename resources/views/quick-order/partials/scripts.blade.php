@@ -56,7 +56,7 @@ window.qbHasImages = @json($hasImages ?? false);
 
             if (data.source === 'waiting') {
                 var tbody = document.querySelector('#qb-table tbody');
-                var cols = 2; if (showImage) cols++; if (!hideSku) cols++; cols++; if (!hideStock) cols++;
+                var cols = 3; if (showImage) cols++; if (!hideSku) cols++; if (!hideStock) cols++;
                 tbody.innerHTML = '<tr><td colspan="' + cols + '">Loading product catalog...</td></tr>';
                 pollCatalogStatus(function() { loadProducts(query, page, perPage); });
                 return;
@@ -73,7 +73,7 @@ window.qbHasImages = @json($hasImages ?? false);
             renderProducts();
             renderPagination();
         } catch (e) {
-            var cols = 2; if (showImage) cols++; if (!hideSku) cols++; cols++; if (!hideStock) cols++;
+            var cols = 3; if (showImage) cols++; if (!hideSku) cols++; if (!hideStock) cols++;
             document.querySelector('#qb-table tbody').innerHTML =
                 '<tr><td colspan="' + cols + '">Could not load products. Please try again.</td></tr>';
         }
@@ -165,10 +165,9 @@ window.qbHasImages = @json($hasImages ?? false);
         var tbody = document.querySelector('#qb-table tbody');
 
         if (!products.length) {
-            var cols = 2; // Product/Variant + Qty (always shown)
+            var cols = 3; // Product/Variant + Price + Qty (always shown)
             if (showImage) cols++;
             if (!hideSku) cols++;
-            cols++; // Price (always)
             if (!hideStock) cols++;
             tbody.innerHTML = '<tr><td colspan="' + cols + '">No products found.</td></tr>';
             return;

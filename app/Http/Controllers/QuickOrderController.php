@@ -291,10 +291,6 @@ class QuickOrderController extends Controller
 
         $data = json_decode(Storage::get($progressPath), true) ?: $default;
         return response()->json($data);
-
-        return response()->json(
-            json_decode(Storage::get($progressPath), true)
-        );
     }
 
     /**
