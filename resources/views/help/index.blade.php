@@ -112,9 +112,9 @@
                             <s-text variant="bodyMd">❓ <strong>Need help?</strong> Stuck somewhere? We'll guide you through it.</s-text>
                             <s-text variant="bodyMd">📣 <strong>Any complaint?</strong> We take feedback seriously — good or bad, we want it all.</s-text>
                         </s-stack>
-                        <s-button variant="primary" size="large" onclick="location.href='mailto:support@pixiestore.in'">
-                            📧 support@pixiestore.in
-                        </s-button>
+                        <s-text variant="headingSm" fontWeight="bold">
+                            ✉️ <a href="mailto:support@pixiestore.in" target="_blank" rel="noopener noreferrer" style="color:var(--p-color-text-interactive);text-decoration:none;">support@pixiestore.in</a>
+                        </s-text>
                         <s-paragraph tone="subdued" variant="bodySm">
                             ⚡ We typically respond within a few hours. No bots, real humans!
                         </s-paragraph>
