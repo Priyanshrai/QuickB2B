@@ -1,0 +1,27 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "1cb8b6496ba31dfd365878c3cc6cf474"
+name = "Quick Order Page"
+application_url = "https://quickorderpage.pixiestore.in"
+embedded = true
+
+[webhooks]
+api_version = "2026-04"
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks"
+  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "write_app_proxy,write_draft_orders,read_inventory,read_online_store_navigation,write_online_store_navigation,read_orders,read_products,read_content,write_content"
+optional_scopes = [ ]
+use_legacy_install_flow = false
+
+[auth]
+redirect_urls = [ "https://quickorderpage.pixiestore.in/authenticate" ]
+
+[app_proxy]
+url = "https://quickorderpage.pixiestore.in/apps/quick-order"
+subpath = "quick-order"
+prefix = "apps"
