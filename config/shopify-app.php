@@ -329,7 +329,7 @@ return [
     |
     */
 
-    'api_init' => function (\Gnikyt\BasicShopifyAPI\Options $options, $session) {
+    'api_init' => \Illuminate\SerializableClosure::from(function (\Gnikyt\BasicShopifyAPI\Options $options, $session) {
         $options->setGuzzleOptions([
             'timeout' => 60.0,
             'connect_timeout' => 15.0,
@@ -352,7 +352,7 @@ return [
         }
 
         return $api;
-    },
+    }),
 
     /*
     |--------------------------------------------------------------------------
