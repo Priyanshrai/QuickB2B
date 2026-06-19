@@ -98,6 +98,46 @@
                 </form>
             </s-box>
 
+            {{-- ── Catalog Management ── --}}
+            <s-section heading="📦 Product Catalog">
+                <s-paragraph tone="subdued" style="margin-bottom:12px;">
+                    Refresh the product catalog to sync latest prices, inventory, and images from your store.
+                    <br><strong>⚠️ Required after enabling images</strong> or making major product changes.
+                </s-paragraph>
+                <s-button id="btn-refresh-catalog" variant="secondary" onclick="refreshCatalog()">
+                    🔄 Refresh Product Catalog
+                </s-button>
+                <s-banner id="catalog-status" tone="info" style="margin-top:12px;display:none;"></s-banner>
+            </s-section>
+
+            <script>
+                async function refreshCatalog() {
+                    var btn = document.getElementById('btn-refresh-catalog');
+                    var banner = document.getElementById('catalog-status');
+                    btn.setAttribute('loading', '');
+                    btn.disabled = true;
+                    banner.style.display = 'block';
+                    banner.textContent = '⏳ Starting catalog refresh...';
+
+                    try {
+                        var resp = await fetch('/apps/quick-order/api/products/refresh', { method: 'POST' });
+                        var data = await resp.json();
+                        if (data.status === 'already_running') {
+                            banner.setAttribute('tone', 'warning');
+                            banner.textContent = '⚠️ ' + data.message;
+                        } else if (data.status === 'started') {
+                            banner.setAttribute('tone', 'success');
+                            banner.textContent = '✅ Catalog refresh started! It may take a few minutes.';
+                        }
+                    } catch (e) {
+                        banner.setAttribute('tone', 'critical');
+                        banner.textContent = '❌ Failed to start refresh. Please try again.';
+                    }
+                    btn.removeAttribute('loading');
+                    btn.disabled = false;
+                }
+            </script>
+
         </s-stack>
     </s-page>
 @endsection
