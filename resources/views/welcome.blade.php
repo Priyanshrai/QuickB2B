@@ -126,32 +126,20 @@
                 <s-stack gap="none">
                     <s-box padding="large-100" borderColor="base" borderWidth="none none small none">
                         <s-stack direction="inline" gap="large-100" alignItems="start">
-                            <s-badge tone="info" size="large" icon="chart-bar">Bulk Order Table</s-badge>
-                            <s-paragraph tone="subdued">Searchable product list with quantity inputs. One "Add All to Cart" button instead of clicking hundreds of times.</s-paragraph>
+                            <s-badge tone="info" size="large" icon="chart-bar">Smart Bulk Order Table</s-badge>
+                            <s-paragraph tone="subdued">Search by name, SKU or tag. Browse by collection. Paginated for large catalogs. Product images and stock visibility built-in.</s-paragraph>
                         </s-stack>
                     </s-box>
                     <s-box padding="large-100" borderColor="base" borderWidth="none none small none">
                         <s-stack direction="inline" gap="large-100" alignItems="start">
-                            <s-badge tone="info" size="large" icon="upload">CSV Upload</s-badge>
-                            <s-paragraph tone="subdued">Drag and drop an Excel file. Products are matched automatically and added to cart — no manual entry.</s-paragraph>
-                        </s-stack>
-                    </s-box>
-                    <s-box padding="large-100" borderColor="base" borderWidth="none none small none">
-                        <s-stack direction="inline" gap="large-100" alignItems="start">
-                            <s-badge tone="info" size="large" icon="refresh">Reorder from History</s-badge>
-                            <s-paragraph tone="subdued">One-click reorder from past purchases. Last week's order back in cart instantly.</s-paragraph>
-                        </s-stack>
-                    </s-box>
-                    <s-box padding="large-100" borderColor="base" borderWidth="none none small none">
-                        <s-stack direction="inline" gap="large-100" alignItems="start">
-                            <s-badge tone="info" size="large" icon="dollar-sign">Customer Pricing</s-badge>
-                            <s-paragraph tone="subdued">Different prices for different customers. VIP wholesale sees $5, retail sees $10 — automatically applied.</s-paragraph>
+                            <s-badge tone="info" size="large" icon="upload">CSV Upload &amp; Draft Orders</s-badge>
+                            <s-paragraph tone="subdued">Upload Excel/CSV files to bulk-add products. Create draft orders with invoice emails — works even on password-protected stores.</s-paragraph>
                         </s-stack>
                     </s-box>
                     <s-box padding="large-100">
                         <s-stack direction="inline" gap="large-100" alignItems="start">
-                            <s-badge tone="info" size="large" icon="package">Stock Visibility</s-badge>
-                            <s-paragraph tone="subdued">Inventory levels shown inline. Customers see "Only 5 left!" before they order — no surprises.</s-paragraph>
+                            <s-badge tone="info" size="large" icon="settings">Flexible Settings</s-badge>
+                            <s-paragraph tone="subdued">Hide out-of-stock items, control min/max quantities, show product images, toggle SKU &amp; stock columns — all from one settings page.</s-paragraph>
                         </s-stack>
                     </s-box>
                 </s-stack>

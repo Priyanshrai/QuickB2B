@@ -2,5 +2,6 @@
 <s-app-nav>
     <s-link href="/" rel="home">🏠 Dashboard</s-link>
     <s-link href="/settings">⚙️ Settings</s-link>
+    <s-link href="/help">❓ Help</s-link>
     <s-link href="/plans">💎 Plan</s-link>
 </s-app-nav>

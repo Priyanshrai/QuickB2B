@@ -10,7 +10,7 @@ Route::get('/privacy', function () {
 });
 
 // App Proxy — storefront Quick Order page + API (signed by Shopify, public)
-Route::middleware(['auth.proxy', 'throttle:120,1'])->group(function () {
+Route::middleware(['auth.proxy', 'throttle:120,1', 'billing.proxy'])->group(function () {
     Route::get('/apps/quick-order/sample-csv', function () {
         return response()->download(public_path('sample-order.csv'));
     });
@@ -142,6 +142,11 @@ Route::middleware(['verify.shopify'])->group(function () {
         ->name('settings.index');
     Route::post('/settings', [\App\Http\Controllers\SettingsController::class, 'save'])
         ->name('settings.save');
+
+    // Help / FAQ
+    Route::get('/help', function () {
+        return view('help.index');
+    })->name('help');
 
     // Catalog refresh (admin-side)
     Route::post('/catalog/refresh', [\App\Http\Controllers\QuickOrderController::class, 'refreshProducts'])
