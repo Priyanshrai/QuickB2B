@@ -81,11 +81,18 @@ Route::get('/', function () {
     return view('welcome');
 })->middleware(['verify.shopify'])->name('home');
 
-// Billing — Plans page (always accessible, no subscription check)
+// Billing — Plans page + cleanup routes (always accessible, no subscription check)
 Route::middleware(['verify.shopify'])->group(function () {
     Route::get('/subscription', function () {
         return view('billing.plans');
     })->name('plans');
+
+    // Allow page deletion & menu unlink without an active plan
+    // (so users can clean up before uninstalling the app)
+    Route::post('/page/delete', [\App\Http\Controllers\PageController::class, 'deletePage'])
+        ->name('page.delete');
+    Route::post('/page/unlink-menu', [\App\Http\Controllers\PageController::class, 'unlinkFromMenu'])
+        ->name('page.unlink-menu');
 });
 
 // ── All other Admin routes (require active subscription) ────────
@@ -98,12 +105,8 @@ Route::middleware(['verify.shopify', 'check.subscription'])->group(function () {
     // Page management
     Route::post('/page/update-title', [\App\Http\Controllers\PageController::class, 'updateTitle'])
         ->name('page.update-title');
-    Route::post('/page/delete', [\App\Http\Controllers\PageController::class, 'deletePage'])
-        ->name('page.delete');
     Route::post('/page/link-menu', [\App\Http\Controllers\PageController::class, 'linkToMenu'])
         ->name('page.link-menu');
-    Route::post('/page/unlink-menu', [\App\Http\Controllers\PageController::class, 'unlinkFromMenu'])
-        ->name('page.unlink-menu');
     Route::post('/page/sync', [\App\Http\Controllers\PageController::class, 'syncPage'])
         ->name('page.sync');
 
