@@ -119,7 +119,7 @@
                     banner.style.display = 'block';
 
                     try {
-                        var resp = await fetch('/catalog/refresh', { method: 'POST' });
+                        var resp = await fetch('/catalog/refresh', { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.sessionToken, 'X-Requested-With': 'XMLHttpRequest' } });
                         var data = await resp.json();
                         if (data.status === 'already_running') {
                             banner.setAttribute('tone', 'warning');
@@ -185,7 +185,7 @@
                             return;
                         }
                         try {
-                            var resp = await fetch('/catalog/status');
+                            var resp = await fetch('/catalog/status', { headers: { 'Authorization': 'Bearer ' + window.sessionToken, 'X-Requested-With': 'XMLHttpRequest' } });
                             if (!resp.ok) return;
                             var text = await resp.text();
                             if (!text) return;

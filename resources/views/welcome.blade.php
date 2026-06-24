@@ -198,7 +198,7 @@
                         var f = document.getElementById('delete-page-form');
                         var b = new URLSearchParams();
                         f.querySelectorAll('input[type=hidden]').forEach(function(e) { if (e.name && e.value) b.append(e.name, e.value); });
-                        fetch(f.getAttribute('action'), { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:b.toString(), redirect:'follow' })
+                        fetch(f.getAttribute('action'), { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded', 'Authorization':'Bearer ' + window.sessionToken, 'X-Requested-With':'XMLHttpRequest'}, body:b.toString(), redirect:'follow' })
                             .then(function(r) { r.ok ? location.href = r.url : location.reload(); }).catch(function() { location.reload(); });
                     });
                     document.getElementById('delete-cancel').addEventListener('click', function() { shopify.modal.hide('delete-page-modal'); });
@@ -239,7 +239,7 @@
         var form = document.getElementById('edit-title-form');
         document.getElementById('edit-title-value').value = newTitle;
         var data = new URLSearchParams(new FormData(form));
-        fetch(form.getAttribute('action'), { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:data.toString(), redirect:'follow' })
+        fetch(form.getAttribute('action'), { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded', 'Authorization':'Bearer ' + window.sessionToken, 'X-Requested-With':'XMLHttpRequest'}, body:data.toString(), redirect:'follow' })
             .then(function(r) { r.ok ? location.href = r.url : location.reload(); })
             .catch(function() { location.reload(); });
     }

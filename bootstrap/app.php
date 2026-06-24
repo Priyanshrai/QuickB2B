@@ -15,7 +15,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'webhook/*',
             'webhooks',
             'apps/quick-order/api/*',
-            'catalog/refresh',
+            // Admin routes protected by session token (JWT) auth —
+            // no cookie-based CSRF needed for incognito compatibility.
+            'catalog/*',
+            'settings',
+            'page/*',
+            'setup/*',
         ]);
 
         $middleware->alias([
